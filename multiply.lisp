@@ -42,8 +42,8 @@
 (macrolet
     ((def (element zero a-type &key (b-type a-type) (c-type a-type) (speed 3))
        `(progn
-	  ,@(loop for a-order in '((col item) (item col) (col item))
-		  and b-order in '((item row) (item row) (row item))
+	  ,@(loop for a-order in '((row item) (item row) (row item))
+		  and b-order in '((item col) (item col) (col item))
 		  and target in '(*multipliers* *transpose-multipliers*
 				  *transpose-b-multipliers*)
 		  collect
@@ -52,7 +52,7 @@
 			    (and (typep a ',a-type)
 				 (typep b ',b-type)
 				 (typep res ',c-type)))
-			  (lambda (A B res cols batch-size rows)
+			  (lambda (A B res rows batch-size cols)
 			    (declare (optimize (speed ,speed) (safety 2) (debug 0))
 				     (,a-type A)
 				     (,b-type B)
@@ -66,7 +66,7 @@
 				    (incf val
 					  (* (aref A ,@a-order)
 					     (aref B ,@b-order)))
-				    (setf (aref res col row) val)))))))
+				    (setf (aref res row col) val)))))))
 			 ,target)))))
 
   (def t 0 (array) :speed 1)			; base case
@@ -129,12 +129,12 @@
 
 (defun times (A B)
   (let* ((batch-size (array-dimension A 1))
-	 (cols (array-dimension A 0))
-	 (rows (array-dimension B 1)))
+	 (rows (array-dimension A 0))
+	 (cols (array-dimension B 1)))
     (assert (= batch-size (array-dimension B 0)))
-    (times-into A B (make-array (list cols rows)
+    (times-into A B (make-array (list rows cols)
 				:element-type (array-element-type A))
-		cols batch-size rows)))
+		rows batch-size cols)))
 
 (defun times-transposed (A B)
   (let* ((batch-size (array-dimension A 0))
@@ -147,9 +147,9 @@
 
 (defun times-transposed-b (A B)
   (let* ((batch-size (array-dimension A 1))
-	 (cols (array-dimension A 0))
-	 (rows (array-dimension B 0)))
+	 (rows (array-dimension A 0))
+	 (cols (array-dimension B 0)))
     (assert (= batch-size (array-dimension B 1)))
-    (times-transposed-b-into A B (make-array (list cols rows)
+    (times-transposed-b-into A B (make-array (list rows cols)
 				:element-type (array-element-type A))
 		cols batch-size rows)))
