@@ -1,9 +1,21 @@
+(defpackage #:regression
+   (:use #:cl #:linear-algebra)
+   (:export "LINEAR-PROPAGATE" "LOGISTIC-PROPAGATE"
+	    "LINEAR-REGRESSION-ITERATION" "LOGISTIC-REGRESSION-ITERATION"
+	    "MAKE-RABDOM-ARRAY")
+   (:documentation "lorem ipsum"))
+
+(in-package regression)
+
+;  "APPLY-FN" "APPLY-FN2"
+
+;;; * Linear regression
 ;;; model: y'=xA
 ;;; Square error: F = Tr (y-y')(y-y')†
 ;;; function: F+½ρ² Tr AA†
 ;;; Variation against A: 2(y'-y)†x + ρ²A
 
-(defun random-array (x y scale)
+(defun make-random-array (x y scale)
   (let ((res
 	  (make-array (list x y) :element-type 'single-float)))
     (dotimes (i  x res)
@@ -11,13 +23,13 @@
 	(setf (aref res i j) (random scale))))))
 
 ;; test model
-(defvar *true-a* (random-array 3 1 1s0))
+(defvar *true-a* (make-random-array 3 1 1s0))
 
-(defvar *more-x* (random-array 10 3 5s0))
+(defvar *more-x* (make-random-array 10 3 5s0))
 
 (defvar *y* (times *more-x* *true-a*))
 
-(defvar *test-A* (random-array 3 1 1s0))
+(defvar *test-A* (make-random-array 3 1 1s0))
 
 (defvar *dy* (linear-combination 1s0 (times *more-x* *test-A*)
 				 -1s0 *y*))

@@ -1,3 +1,32 @@
+(defpackage "LINEAR-ALGEBRA"
+  (:use #:cl)
+  (:export "TIMES" "TIMES-INTO"
+	   "LINEAR-COMBINATION"
+	   "TIMES-TRANSPOSED" "TIMES-TRANSPOSED-INTO"))
+
+(in-package linear-algebra)
+
+;;;; Multiplication functions on matrixes of three variants:
+;;;; - AB (i.e., A(i j) B(j i)
+;;;; - ABt
+;;;;
+;;;; Each list contains several possible funtions to multiply, each
+;;;; specialing on some matrix types.
+;;;;
+;;;; Possible extensions: allow multiply vector and matrix in order,
+;;;; apply function in order, etc. - but you usually know that you
+;;;; want to do this, so you can specialize yourself.
+;;;;
+;;;; Typically, it make sense to majke a generic function (without
+;;;; speed optimization) and on simple-array of single-float or double-float
+;;;;
+;;;; You can get even faster if you specify array size; this is not
+;;;; tested only for square matrixes.
+;;;;
+;;;; Some speed optimizations are in place, some not. In particular,
+;;;; no effort to optimize memory access was done, as experiments did
+;;;; not show it helpful on my machine.
+
 (defparameter *multipliers* nil
   "List of discriminating functions and associated multipliers.")
 
