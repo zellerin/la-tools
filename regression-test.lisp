@@ -10,26 +10,30 @@
       for line = (read-line in nil nil)
       for size from 0
       while line
-      for (x y) = (read-from-string (concatenate 'string "(" line ")"))
-      collect x into xses
-      collect y into yses
+      for data = (read-from-string (concatenate 'string "(" line ")"))
+      collect (butlast data) into xses
+      collect (car (last data)) into yses
       finally (return (values size xses yses)))))
 
-  (multiple-value-bind (size xlist ylist)
-      (read-comma-file))
-
-
-(defun get-lr-coefficients (count size xlist ylist)
-  (let ((x (make-array `(,size 2) :initial-element 0s0 :element-type 'single-float))
+(defun get-lr-coefficients (count size xlist ylist &key (sigma -1.25e-4) (rho 1s0))
+  (let ((x (make-array `(,size (1+
+				  (length (car xlist)))) :initial-element 0s0 :element-type 'single-float))
 	(y (make-array `(,size 1) :initial-element 0s0 :element-type 'single-float))
-	(A (make-random-array 2 1 1s-4)))
+	(A (make-random-array (1+ (length (car xlist))) 1 1s-4)))
     (loop for row from 0
-	  for xval in xlist
+	  for xrow in xlist
 	  and yval in ylist
 	  do
+	     (loop for xval in xrow
+			    for col from 1
+			    do
+			       (setf (aref x row col)
+				     (coerce xval 'single-float)))
+
 	     (setf (aref x row 0) 1s0
-		   (aref x row 1) xval
 		   (aref y row 0) (coerce yval 'single-float)))
     (dotimes (i count)
-      (print (linear-regression-iteration y A x -1.25e-4 1s0)))
-    (list (aref A 0 0) (aref A 1 0))))
+      (print (linear-regression-iteration y A x sigma rho)))
+    (make-array (array-dimension A 0)
+		:element-type 'single-float
+		:displaced-to A)))

@@ -95,7 +95,7 @@ This lisp source block generates coefficients =k= and =q= for best fit.
 The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var file="~/src/machine-learning-course/ex1/ex1data1.txt"
 #+header: :var q=ex1-lr[0,0] :var k=ex1-lr[1,0]
-#+BEGIN_SRC gnuplot :exports code :file file.svg :exports both
+#+BEGIN_SRC gnuplot :exports code :file ex1data1.svg :exports both
 set xlabel "Population (in 10 000)"
 set ylabel "Profit (in 10 000 USD)"
 set key box linestyle -1 left top
@@ -104,4 +104,30 @@ plot file using "%lf,%lf\n" title "Training data",\
 #+END_SRC
 
 #+RESULTS:
-[[file:file.svg]]
+[[file:ex1data1.svg]]
+
+* Multiple variable LR
+Actually, original point of the second part of example 1 was to
+introduce normalization of the data set. This was not done so far.
+
+#+NAME: ex1data2
+#+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex1/ex1data2.txt"
+(multiple-value-call #'get-lr-coefficients
+  500 (read-comma-file file) :sigma -1.25e-10)
+#+END_SRC
+
+The coefficients are used by the gnuplot to draw the line agains data points.
+#+header: :var file="~/src/machine-learning-course/ex1/ex1data2.txt"
+#+header: :var q=ex1data2[0,0] :var k1=ex1data2[1,0] :var k2=ex1data2[2,0]
+#+BEGIN_SRC gnuplot :exports code :file ex1data2.svg :exports both
+set xlabel "Size"
+set ylabel "Rooms"
+set zlabel "Cost"
+set key box linestyle -1 left top
+splot file using "%lf,%lf,%lf\n" title "Training data",\
+   q+k1*x+k2*y title "Linear regression"
+#+END_SRC
+
+#+RESULTS:
+[[file:ex1data2.svg]]
+
