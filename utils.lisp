@@ -57,4 +57,4 @@
 	  (make-array (list x y) :element-type 'single-float)))
     (dotimes (i  x res)
       (dotimes (j y)
-	(setf (aref res i j) (random scale))))))
+	(setf (aref res i j) (- scale (random (* 2 scale))))))))

@@ -1,8 +1,3 @@
-(defpackage "LINEAR-ALGEBRA"
-  (:use #:cl)
-  (:export "TIMES" "TIMES-INTO"
-	   "LINEAR-COMBINATION"
-	   "TIMES-TRANSPOSED" "TIMES-TRANSPOSED-INTO"))
 
 (in-package linear-algebra)
 

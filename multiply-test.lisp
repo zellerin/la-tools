@@ -17,7 +17,7 @@
     (time (times single-500-500 single-500-499))
     (values)))
 
-(assert
+(deftest direct
   (equalp
    (linear-algebra:times
     #2A((2 1 4 5)
@@ -33,9 +33,10 @@
 
    #2A((35 -7)
        (12 -31)
-       (45 70))))
+       (45 70)))
+  t)
 
-(assert
+(deftest transposed
   (equalp
 
    (times-transposed
@@ -50,4 +51,5 @@
 
    #2A((35 -7)
        (12 -31)
-       (45 70))))
+       (45 70)))
+  t)

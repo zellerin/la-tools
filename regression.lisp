@@ -1,7 +1,5 @@
 (in-package regression)
 
-;  "APPLY-FN" "APPLY-FN2"
-
 ;;; * Linear regression
 ;;; model: y'=xA
 ;;; Square error: F = Tr (y-y')(y-y')†
@@ -11,7 +9,7 @@
 ;; test model
 (defparameter *true-a* (make-random-array 3 1 1s0))
 (defparameter *x* (make-random-array 10 3 5s0))
-(defparameter *y* (times *more-x* *true-a*))
+(defparameter *y* (times *x* *true-a*))
 (defparameter *logistic-y* (apply-fn #'float-sigma (copy-array *y*)))
 (defparameter *test-A* (make-random-array 3 1 1s2))
 
@@ -38,15 +36,18 @@
 			 (times-transposed x (apply-fn2 #'float-dsigma dy y)))
      *true-a*)))
 
-(defun check-linear (count)
+(defun check-linear (count &optional (sampling 20))
   (let ((*test-A* (make-random-array 3 1 1s0)))
     (dotimes (i count)
-      (print (linear-regression-iteration *y* *test-A* *more-x* -6s-3 1s0)))))
+      (let ((F
+	      (linear-regression-iteration *y* *test-A* *x* -6s-3 1s0)))
+	(when (zerop (mod i sampling))
+	  (print (aref F 0 0)))))))
 
 (defun check-logistic (count)
   (let ((*test-A* (make-random-array 3 1 1s0)))
     (dotimes (i count)
-      (print (logistic-regression-iteration *logistic-y* *test-A* *more-x* 0.3 1s0)))))
+      (print (logistic-regression-iteration *logistic-y* *test-A* *x* 0.3s0 1s0)))))
 
 (defun try-sigmas (fn y fixed-A x base rho &optional (count 10))
   "Try range of sigmas (two orders) around base."
@@ -63,10 +64,10 @@
   "Try range of sigmas (two orders) around base for logistic regression."
   (apply 'try-sigmas 'logistic-regression-iteration pars))
 
-; (try-sigmas-logistic *logistic-y* *test-A* *more-x* 1s0 1s0)
+; (try-sigmas-logistic *logistic-y* *test-A* *x* -0.006 1s0)
 
 (defun try-sigmas-linear (&rest pars)
   "Try range of sigmas (two orders) around base for linear regression."
   (apply 'try-sigmas 'linear-regression-iteration pars))
 
-; (try-sigmas-linear *y* *test-A* *more-x* -1s-2 1s0)
+; (try-sigmas-linear *y* *test-A* *x* -1s-2 1s0)
