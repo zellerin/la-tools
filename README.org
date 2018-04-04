@@ -3,15 +3,17 @@
 Some time ago, I took a course on ML with examples in
 Octave/Matlab. This repository tries to redo the stuff in Common Lisp.
 
-1. Linear algebra - I need linear combinations and matrix (including
+* Linear algebra
+I need linear combinations and matrix (including
    row and column vector) multiplication. I met quite a few LA
    libraries, some native, some using FFI, and most of them is a bit
    too complicated. Also, I wanted to get a feeling on speed of simple
    code.
 
+** Speed test
 This is speed test with current machine (HP notebook), sbcl,
  and safety level in the code 2
-#+BEGIN_SRC lisp :package linear-algebra
+#+BEGIN_SRC lisp :package linear-algebra :exports both
 (with-output-to-string (*trace-output*) (speed-test))
 #+END_SRC
 
@@ -79,7 +81,7 @@ Evaluation took:
 
 
 
-2. Linear and logistic regression -
+* Linear and logistic regression -
 
 #+NAME: ex1-data
 #+BEGIN_SRC lisp :results table output
@@ -187,7 +189,7 @@ Evaluation took:
 | 13.394 |   9.0551 |
 | 5.4369 |  0.61705 |
 
-#+BEGIN_SRC gnuplot :exports code :file file.svg :var data=ex1-data
+#+BEGIN_SRC gnuplot :exports code :file file.svg :var data=ex1-data :exports both
 set xlabel "Population (in 10 000)"
 set ylabel "Profit (in 10 000 USD)"
 set key box linestyle -1 right bottom
