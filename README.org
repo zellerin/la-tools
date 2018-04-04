@@ -9,7 +9,77 @@ Octave/Matlab. This repository tries to redo the stuff in Common Lisp.
    too complicated. Also, I wanted to get a feeling on speed of simple
    code.
 
-2. Linear and logistic regression - 
+This is speed test with current machine (HP notebook), sbcl,
+ and safety level in the code 2
+#+BEGIN_SRC lisp :package linear-algebra
+(with-output-to-string (*trace-output*) (speed-test))
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+
+"generic 500x500 x 500x500"
+Evaluation took:
+  3.899 seconds of real time
+  3.892761 seconds of total run time (3.892761 user, 0.000000 system)
+  99.85% CPU
+  9,335,597,886 processor cycles
+  2,000,016 bytes consed
+
+
+"single float 500x500 x 500x500"
+Evaluation took:
+  0.352 seconds of real time
+  0.351598 seconds of total run time (0.351598 user, 0.000000 system)
+  100.00% CPU
+  843,242,727 processor cycles
+  1,000,016 bytes consed
+
+
+"single float 500x500 x 500x499"
+Evaluation took:
+  0.844 seconds of real time
+  0.842978 seconds of total run time (0.842978 user, 0.000000 system)
+  99.88% CPU
+  2,021,698,665 processor cycles
+  998,016 bytes consed
+
+#+end_example
+
+To compare, here is similar result with safety 0 on HP machine
+#+BEGIN_SRC lisp :package linear-algebra
+(with-output-to-string (*trace-output*)
+  (speed-test))
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Evaluation took:
+  2.832 seconds of real time
+  2.827234 seconds of total run time (2.827234 user, 0.000000 system)
+  99.82% CPU
+  6,780,825,048 processor cycles
+  2,000,016 bytes consed
+
+Evaluation took:
+  0.199 seconds of real time
+  0.198204 seconds of total run time (0.198204 user, 0.000000 system)
+  99.50% CPU
+  475,382,718 processor cycles
+  1,000,016 bytes consed
+
+Evaluation took:
+  0.285 seconds of real time
+  0.284544 seconds of total run time (0.284544 user, 0.000000 system)
+  100.00% CPU
+  682,432,197 processor cycles
+  998,016 bytes consed
+
+#+end_example
+
+
+
+2. Linear and logistic regression -
 
 #+NAME: ex1-data
 #+BEGIN_SRC lisp :results table output
