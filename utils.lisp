@@ -78,6 +78,7 @@ deviation 1."
 	  for sigma = (sqrt (/  (- sumsq (* sum avg))
 				len))
 	  do
+	     (assert (> sumsq (* avg sum)) () "Strange avg (~s = ~s / ~s) and sumsq (~s)" avg sum len sumsq)
 	     (setf (aref A 0 i) (* -1s0 (/ avg sigma))
 		   (aref A i i) (/ 1s0 sigma))
 	  finally (return (values (times X a) A)))))

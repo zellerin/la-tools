@@ -31,20 +31,22 @@
 				(setf (aref x row col)
 				      (coerce xval 'single-float)))
 		       
-		       (setf (aref x row 0) 40s0
+		       (setf (aref x row 0) 1s0
 			     (aref y row 0) (coerce yval 'single-float))
 		    finally (return (values y A x)))))))
 
-(defun get-lr-coefficients (count y A x &key (sigma -1.25e-4) (rho 1s0))
-  (dotimes (i count)
-    (print (linear-regression-iteration y A x sigma rho)))
-  (make-array (array-dimension A 0)
-	      :element-type 'single-float
-	      :displaced-to A))
+(defun get-lr-coefficients (count y A raw-x &key (sigma -1.25e-4) (rho 1s0))
+  (multiple-value-bind (x norm) (normalize raw-x)
+    (dotimes (i count)
+      (print (linear-regression-iteration y A x sigma rho)))
+    (make-array (array-dimension A 0)
+		:element-type 'single-float
+		:displaced-to (times norm A))))
 
-(defun get-log-coefficients (count y A x &key (sigma -0.3) (rho 1s0))
-  (dotimes (i count)
-    (print (logistic-regression-iteration y A x sigma rho)))
-  (make-array (array-dimension A 0)
-	      :element-type 'single-float
-	      :displaced-to A))
+(defun get-log-coefficients (count y A raw-x &key (sigma -0.3) (rho 1s0))
+  (multiple-value-bind (x norm) (normalize raw-x)
+    (dotimes (i count)
+      (print (logistic-regression-iteration y A x sigma rho)))
+    (make-array (array-dimension A 0)
+		:element-type 'single-float
+		:displaced-to (times norm A))))

@@ -113,7 +113,7 @@ introduce normalization of the data set. This was not done so far.
 #+NAME: ex1data2
 #+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex1/ex1data2.txt"
 (multiple-value-call #'get-lr-coefficients
-  500 (read-comma-file file) :sigma -1.25e-10)
+  500 (read-comma-file file) :sigma -1.25e-2)
 #+END_SRC
 
 The coefficients are used by the gnuplot to draw the line agains data points.
@@ -149,7 +149,7 @@ The coefficients are used by the gnuplot to draw the line agains data points.
 set key box linestyle -1 left bottom
 plot file using 1:($3 == 1 ? $2 : 1/0) "%lf,%lf,%lf\n" title "1",\
    file using 1:($3 == 0 ? $2 : 1/0) "%lf,%lf,%lf\n" title "0", \
-   (-q*40-k1*x)/k2 
+   (-q-k1*x)/k2
 #+END_SRC
 
 #+RESULTS:
