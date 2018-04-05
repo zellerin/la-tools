@@ -49,7 +49,7 @@
 (defun check-logistic (count pars)
   (let ((*test-A* (make-random-array 3 1 1s0)))
     (dotimes (i count)
-      (print (logistic-regression-iteration *logistic-y* *test-A* *x* 0.3s0 1s0)))))
+      (print (apply 'logistic-regression-iteration pars)))))
 
 (defun try-sigmas (fn y fixed-A x base rho &optional (count 10))
   "Try range of sigmas (two orders) around base."
