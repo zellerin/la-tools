@@ -9,7 +9,7 @@
 "
   (declare (single-float x)
 	   (optimize speed))
-  (/ 1s0 (+ 1s0 (exp (- x)))))
+  (/ 1s0 (+ 1s0 (exp (- (max -60.0 x))))))
 
 (defun float-dsigma (diff sigma)
   (* sigma (- 1s0 sigma) diff))
