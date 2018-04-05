@@ -6,15 +6,23 @@
         1
 σ = ---------
     1+exp(-x)
-"
+
+for a single-float parameter X. Care is taken not to underflow for
+large negative values of x."
   (declare (single-float x)
 	   (optimize speed))
-  (/ 1s0 (+ 1s0 (exp (- (max -60.0 x))))))
+  (if (> x #.(- 1s0 (log most-positive-single-float)))
+      (/ 1s0 (+ 1s0 (exp (- x))))
+      0))
 
 (defun float-dsigma (diff sigma)
+  "Help calculate derivation of function of sigma, using formula
+
+f(sigma(x))' = f'(sigma) . sigma . (1-sigma)."
   (* sigma (- 1s0 sigma) diff))
 
 (defun apply-fn (fn A)
+  "Destructively apply function fn to all cells of a 2D matrix A."
   (let ((rows (array-dimension A 0))
 	(cols (array-dimension A 1)))
   (declare
@@ -26,6 +34,8 @@
 	(setf (aref A i j) (funcall fn (aref A i j)))))))
 
 (defun apply-fn2 (fn A B)
+  "Destructively apply function fn to all respective cells of a 2D
+matrix A and B (same dimensions assumed) and store result to cells in A.."
   (let ((rows (array-dimension A 0))
 	(cols (array-dimension A 1)))
   (declare
@@ -38,6 +48,7 @@
 
 
 (defun copy-array (a)
+  "Create a copy of an array with same dimensions and element type."
   (let* ((type (array-element-type a))
 	 (res
 	   (make-array (array-dimensions a)
@@ -60,7 +71,7 @@
 	(setf (aref res i j) (- scale (random (* 2 scale))))))))
 
 (defun normalize (x)
-  "Return normalized matrix X and normalizer A, i.e.,
+  "Assuming that first column of X is all ones, return normalized matrix X and normalizer A, i.e.,
 X -> (X' A) where
 - X' = X.A,
 - and average of each X column is 0 and standard
@@ -82,4 +93,3 @@ deviation 1."
 	     (setf (aref A 0 i) (* -1s0 (/ avg sigma))
 		   (aref A i i) (/ 1s0 sigma))
 	  finally (return (values (times X a) A)))))
-
