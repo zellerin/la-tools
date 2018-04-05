@@ -156,8 +156,8 @@ plot file using 1:($3 == 1 ? $2 : 1/0) "%lf,%lf,%lf\n" title "1",\
 [[file:ex1data2.svg]]
 
 * BUGS/next steps
-- [ ] (check-logistic): parameter args added but not used
+- [X] (check-logistic): parameter args added but not used
 - [ ] Linear combination being destructive is counterintuitive. Rename
   to update and define true non-destructive combination
-- [ ] Normalization of X is missing
-- [ ] Better optimizer for logistic example
+- [X] Normalization of X is missing
+- [X] Better optimizer for logistic example <- fixed a bit by scaling
