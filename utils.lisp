@@ -58,3 +58,27 @@
     (dotimes (i  x res)
       (dotimes (j y)
 	(setf (aref res i j) (- scale (random (* 2 scale))))))))
+
+(defun normalize (x)
+  "Return normalized matrix X and normalizer A, i.e.,
+X -> (X' A) where
+- X' = X.A,
+- and average of each X column is 0 and standard
+deviation 1."
+  (let* ((correlation (times-transposed X X))
+	 (size (array-dimension X 1))
+	 (A (make-array (list size size) :element-type 'single-float
+					 :initial-element 0s0)))
+    (setf (aref A 0 0) 1s0)
+    (loop with len = (array-dimension X 0)
+	  for i from 1 to (1- size)
+	  for sum = (aref correlation 0 i)
+	  and sumsq = (aref correlation i i)
+	  for avg = (/ sum len)
+	  for sigma = (sqrt (/  (- sumsq (* sum avg))
+				len))
+	  do
+	     (setf (aref A 0 i) (* -1s0 (/ avg sigma))
+		   (aref A i i) (/ 1s0 sigma))
+	  finally (return (values (times X a) A)))))
+
