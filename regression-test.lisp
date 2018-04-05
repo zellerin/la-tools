@@ -13,27 +13,38 @@
       for data = (read-from-string (concatenate 'string "(" line ")"))
       collect (butlast data) into xses
       collect (car (last data)) into yses
-      finally (return (values size xses yses)))))
+      finally
+	 (return  (loop
+		    with x = (make-array
+			      `(,size (1+
+				       (length (car xses))))
+			      :initial-element 0s0 :element-type 'single-float) 
+		    and y = (make-array `(,size 1) :initial-element 0s0 :element-type 'single-float)
+		    and A = (make-random-array (1+ (length (car xses))) 1 2s-2)
+		    for row from 0
+		    for xrow in xses
+		    and yval in yses
+		    do
+		       (loop for xval in xrow
+			     for col from 1
+			     do
+				(setf (aref x row col)
+				      (coerce xval 'single-float)))
+		       
+		       (setf (aref x row 0) 40s0
+			     (aref y row 0) (coerce yval 'single-float))
+		    finally (return (values y A x)))))))
 
-(defun get-lr-coefficients (count size xlist ylist &key (sigma -1.25e-4) (rho 1s0))
-  (let ((x (make-array `(,size (1+
-				  (length (car xlist)))) :initial-element 0s0 :element-type 'single-float))
-	(y (make-array `(,size 1) :initial-element 0s0 :element-type 'single-float))
-	(A (make-random-array (1+ (length (car xlist))) 1 1s-4)))
-    (loop for row from 0
-	  for xrow in xlist
-	  and yval in ylist
-	  do
-	     (loop for xval in xrow
-			    for col from 1
-			    do
-			       (setf (aref x row col)
-				     (coerce xval 'single-float)))
+(defun get-lr-coefficients (count y A x &key (sigma -1.25e-4) (rho 1s0))
+  (dotimes (i count)
+    (print (linear-regression-iteration y A x sigma rho)))
+  (make-array (array-dimension A 0)
+	      :element-type 'single-float
+	      :displaced-to A))
 
-	     (setf (aref x row 0) 1s0
-		   (aref y row 0) (coerce yval 'single-float)))
-    (dotimes (i count)
-      (print (linear-regression-iteration y A x sigma rho)))
-    (make-array (array-dimension A 0)
-		:element-type 'single-float
-		:displaced-to A)))
+(defun get-log-coefficients (count y A x &key (sigma -0.3) (rho 1s0))
+  (dotimes (i count)
+    (print (logistic-regression-iteration y A x sigma rho)))
+  (make-array (array-dimension A 0)
+	      :element-type 'single-float
+	      :displaced-to A))

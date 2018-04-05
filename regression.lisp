@@ -20,21 +20,23 @@
     (values
      (times-transposed dy dy)
      dy
-     (linear-combination rho A sigma (times-transposed x dy ))
-     *true-a*)))
+     (linear-combination rho A sigma (times-transposed x dy)))))
 
 (defun logistic-regression-iteration (y A x sigma rho)
   "Iteration step; modifies A to get closer."
-  (let ((dy (linear-combination 1s0
-				(apply-fn #'float-sigma
-					  (times x A))
-				-1s0 y)))
-    (values
-     (times-transposed dy dy)
+  (let* ((my-y (apply-fn #'float-sigma
+			 (times x A)))
+	 (dy (linear-combination 1s0
+				 (copy-array my-y)
+				 -1s0 y))
+	 (f (times-transposed dy dy))
+
+	 (a-diff (times-transposed x (apply-fn2 #'float-dsigma
+						dy my-y))))
+    (values f
      dy
-     (linear-combination rho A sigma
-			 (times-transposed x (apply-fn2 #'float-dsigma dy y)))
-     *true-a*)))
+     a-diff
+     (linear-combination rho A sigma a-diff))))
 
 (defun check-linear (count &optional (sampling 20))
   (let ((*test-A* (make-random-array 3 1 1s0)))
@@ -44,7 +46,7 @@
 	(when (zerop (mod i sampling))
 	  (print (aref F 0 0)))))))
 
-(defun check-logistic (count)
+(defun check-logistic (count pars)
   (let ((*test-A* (make-random-array 3 1 1s0)))
     (dotimes (i count)
       (print (logistic-regression-iteration *logistic-y* *test-A* *x* 0.3s0 1s0)))))
