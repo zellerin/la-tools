@@ -1,4 +1,11 @@
 (in-package linear-algebra)
+
+(defmacro time-in-ms-as-real (&body body)
+  `(let ((start (get-internal-run-time)))
+     ,@body
+     (/ (- (get-internal-run-time) start) 0.001 internal-time-units-per-second)))
+
+
 (defun speed-test ()
   (dribble (merge-pathnames "log.txt"
 			    (or *compile-file-pathname*
