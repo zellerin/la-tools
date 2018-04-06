@@ -6,13 +6,6 @@
 ;;; function: F+½ρ² Tr AA†
 ;;; Variation against A: 2(y'-y)†x + ρ²A
 
-;; test model
-(defparameter *true-a* (make-random-array 3 1 1s0))
-(defparameter *x* (make-random-array 10 3 5s0))
-(defparameter *y* (times *x* *true-a*))
-(defparameter *logistic-y* (apply-fn #'float-sigma (copy-array *y*)))
-(defparameter *test-A* (make-random-array 3 1 1s2))
-
 (defun linear-regression-iteration (y A x sigma rho)
   "Iteration step; modifies A."
   (let ((dy (linear-combination 1s0 (times x A)
