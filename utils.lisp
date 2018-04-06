@@ -13,7 +13,7 @@ large negative values of x."
 	   (optimize speed))
   (if (> x #.(- 1s0 (log most-positive-single-float)))
       (/ 1s0 (+ 1s0 (exp (- x))))
-      0))
+      0s0))
 
 (defun float-dsigma (diff sigma)
   "Help calculate derivation of function of sigma, using formula
