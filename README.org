@@ -79,7 +79,7 @@ Evaluation took:
 
 #+end_example
 
-* Linear and logistic regression
+* Linear regression in one variable
 
 This is exercise 1 of the course. Gradient descent method is used to
 minimise error function for linear regression of data in file
@@ -136,11 +136,11 @@ splot file using "%lf,%lf,%lf\n" title "Training data",\
 #+NAME: ex2data1
 #+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
 (multiple-value-call #'get-log-coefficients
-  30000 (read-comma-file file) :sigma -0.0002 :rho 1s0)
+  3000 (read-comma-file file))
 #+END_SRC
 
 #+RESULTS: ex2data1
-| -0.58089924 | 0.20303176 | 0.1781221 |
+| -21.747768 | 0.1885916 | 0.16767454 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
