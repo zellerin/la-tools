@@ -31,16 +31,12 @@
 (defparameter *transpose-multipliers* nil
   "List of discriminating functions and associated x=ax+by functions.")
 
-(defparameter *transpose-b-multipliers* nil
-  "List of discriminating functions and associated x=ax+by functions.")
-
 (macrolet
     ((def (element zero a-type &key (b-type a-type) (c-type a-type) (speed 3))
        `(progn
-	  ,@(loop for a-order in '((row item) (item row) (row item))
-		  and b-order in '((item col) (item col) (col item))
-		  and target in '(*multipliers* *transpose-multipliers*
-				  *transpose-b-multipliers*)
+	  ,@(loop for a-order in '((row item) (item row))
+		  and b-order in '((item col) (item col))
+		  and target in '(*multipliers* *transpose-multipliers*)
 		  collect
 		  `(push (cons
 			  (lambda (a b res)
@@ -106,12 +102,6 @@
 	  do (return (funcall fn a b res cols batch-size rows))
 	finally (error "No matching fn")))
 
-(defun times-transposed-b-into (A B res cols batch-size rows)
-  (loop for (check . fn) in *transpose-b-multipliers*
-	when (funcall check a b res)
-	  do (return (funcall fn a b res cols batch-size rows))
-	finally (error "No matching fn")))
-
 (defun linear-combination (a x b y)
   (assert (= (array-dimension x 0) (array-dimension y 0)))
   (assert (= (array-dimension x 1) (array-dimension y 1)))
@@ -139,12 +129,3 @@
     (times-transposed-into A B (make-array (list cols rows)
 				:element-type (array-element-type A))
 			   cols batch-size rows)))
-
-(defun times-transposed-b (A B)
-  (let* ((batch-size (array-dimension A 1))
-	 (rows (array-dimension A 0))
-	 (cols (array-dimension B 0)))
-    (assert (= batch-size (array-dimension B 1)))
-    (times-transposed-b-into A B (make-array (list rows cols)
-				:element-type (array-element-type A))
-		cols batch-size rows)))
