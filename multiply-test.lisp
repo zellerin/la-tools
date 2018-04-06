@@ -1,21 +1,10 @@
 (in-package linear-algebra)
-(defun speed-test ()
-  (dribble (merge-pathnames "log.txt"
-			    (or *compile-file-pathname*
-				*load-pathname*
-				".")))
-  (let ((generic-500-500 (make-array '(500 500) :initial-element 1))
-	(single-500-500 (make-array '(500 500) :element-type 'single-float
-					       :initial-element 1s0))
-	(single-500-499 (make-array '(500 499) :element-type 'single-float
-					       :initial-element 1s0)))
-    (print "generic 500x500 x 500x500" *trace-output*)
-    (time (times generic-500-500 generic-500-500))
-    (print "single float 500x500 x 500x500" *trace-output*)
-    (time (times single-500-500 single-500-500))
-    (print "single float 500x500 x 500x499" *trace-output*)
-    (time (times single-500-500 single-500-499))
-    (values)))
+
+(defmacro time-in-ms-as-real (&body body)
+  `(let ((start (get-internal-run-time)))
+     ,@body
+     (/ (- (get-internal-run-time) start) 0.001 internal-time-units-per-second)))
+
 
 (deftest direct
   (equalp

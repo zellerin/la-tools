@@ -11,73 +11,45 @@ I need linear combinations and matrix (including
    code.
 
 ** Speed test
+   :PROPERTIES:
+   :ORDERED:  t
+   :END:
 This is speed test with current machine (HP notebook), sbcl,
  and safety level in the code 2
-#+BEGIN_SRC lisp :package linear-algebra :exports both
-(with-output-to-string (*trace-output*) (speed-test))
+
+#+NAME: speed-test
+#+header: :var rows=500 :var across=500
+#+BEGIN_SRC lisp :package linear-algebra :var type="SINGLE-FLOAT" :var cols=500
+  (let ((a (make-array `(,rows ,across) :element-type type
+					:initial-element 0s0))
+	(b (make-array `(,across cols) :element-type type
+				       :initial-element 0s0)))
+  
+     (time-in-ms-as-real (times a b)))
 #+END_SRC
 
-#+RESULTS:
-#+begin_example
+The speeds for individual table types and sizes are like this on my machine:
+#+TBLNAME:
+| rows | across | cols | element-type | time (ms) | per-ms |
+|------+--------+------+--------------+-----------+--------|
+|  500 |    500 |  500 | single-float |     382.0 | 327225 |
+|------+--------+------+--------------+-----------+--------|
+|  100 |    100 |  100 | single-float |       8.0 | 125000 |
+|  200 |    200 |  200 | single-float |      50.0 | 160000 |
+|  400 |    400 |   10 | single-float |      11.0 | 145455 |
+|  400 |    400 |   20 | single-float |      20.0 | 160000 |
+|  400 |    400 |   40 | single-float |      40.0 | 160000 |
+|  400 |    400 |  100 | single-float |      98.0 | 163265 |
+|  400 |    400 |  200 | single-float |     199.0 | 160804 |
+|  400 |    400 |  400 | single-float |     439.0 | 145786 |
+|  400 |    400 | 1000 | single-float |    1033.0 | 154889 |
+|  400 |    400 | 2000 | single-float |    2079.0 | 153920 |
+|------+--------+------+--------------+-----------+--------|
+|  400 |    400 |   50 | t            |     289.0 |  27682 |
+#+TBLFM: $5='(org-sbe speed-test (type '$4) (cols $3) (rows $1) (across $2))::$6=round($1*$2*$3/$5)
 
-"generic 500x500 x 500x500"
-Evaluation took:
-  3.899 seconds of real time
-  3.892761 seconds of total run time (3.892761 user, 0.000000 system)
-  99.85% CPU
-  9,335,597,886 processor cycles
-  2,000,016 bytes consed
-
-
-"single float 500x500 x 500x500"
-Evaluation took:
-  0.352 seconds of real time
-  0.351598 seconds of total run time (0.351598 user, 0.000000 system)
-  100.00% CPU
-  843,242,727 processor cycles
-  1,000,016 bytes consed
-
-
-"single float 500x500 x 500x499"
-Evaluation took:
-  0.844 seconds of real time
-  0.842978 seconds of total run time (0.842978 user, 0.000000 system)
-  99.88% CPU
-  2,021,698,665 processor cycles
-  998,016 bytes consed
-
-#+end_example
-
-To compare, here is similar result with safety 0 on HP machine
-#+BEGIN_SRC lisp :package linear-algebra
-(with-output-to-string (*trace-output*)
-  (speed-test))
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-Evaluation took:
-  2.832 seconds of real time
-  2.827234 seconds of total run time (2.827234 user, 0.000000 system)
-  99.82% CPU
-  6,780,825,048 processor cycles
-  2,000,016 bytes consed
-
-Evaluation took:
-  0.199 seconds of real time
-  0.198204 seconds of total run time (0.198204 user, 0.000000 system)
-  99.50% CPU
-  475,382,718 processor cycles
-  1,000,016 bytes consed
-
-Evaluation took:
-  0.285 seconds of real time
-  0.284544 seconds of total run time (0.284544 user, 0.000000 system)
-  100.00% CPU
-  682,432,197 processor cycles
-  998,016 bytes consed
-
-#+end_example
+It appears to provide relatively stable number of (rows*cols*across)
+field in the tested ranges for floats.
 
 * Linear regression in one variable
 
