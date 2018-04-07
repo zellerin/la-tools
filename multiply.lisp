@@ -103,8 +103,7 @@
 	finally (error "No matching fn")))
 
 (defun linear-combination (a x b y)
-  (assert (= (array-dimension x 0) (array-dimension y 0)))
-  (assert (= (array-dimension x 1) (array-dimension y 1)))
+  (assert (equalp (array-dimensions x) (array-dimensions y)))
   (loop for (check . fn) in *linear-combinations*
 	when (funcall check x y a b)
 	  do (return (funcall fn a x b y

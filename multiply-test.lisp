@@ -42,3 +42,19 @@
        (12 -31)
        (45 70)))
   t)
+
+(deftest (linear-combination 1)
+    (equalp
+     ;; first should not be a literal
+     (linear-combination 3 (make-array '(3 3) :initial-element 1)
+			 2 #2a((1 2 3)
+			       (4 5 6)
+			       (7 8 9)))
+     #2A ((5 7 9) (11 13 15) (17 19 21)))
+  t)
+
+(deftest (linear-combination-mismatch)
+    (handler-case
+	(linear-combination 1 #2A ((1 2 3)) 1 #2a ((1 2)))
+      (t (e) (type-of e)))
+  simple-error)
