@@ -68,19 +68,20 @@
 (macrolet
     ((def (element v-type &key (speed 3))
        `(push (cons
-	       (lambda (x y a b)
+	       (lambda (res x y a b)
 		 (and (typep x ',v-type)
 		      (typep y ',v-type)
+		      (typep res ',v-type)
 		      (typep a ',element)
 		      (typep b ',element)))
-	       (lambda (a x b y rows cols)
+	       (lambda (res a x b y rows cols)
 		 (declare (optimize (speed ,speed) (safety 1) (debug 0))
-			  (,v-type x y)
+			  (,v-type x y res)
 			  (,element a b)
 			  (fixnum rows cols))
-		 (dotimes (col cols x)
+		 (dotimes (col cols res)
 		   (dotimes (row rows)
-		     (setf (aref x row col)
+		     (setf (aref res row col)
 			   (+ (* a (aref x row col))
 			      (* b (aref y row col))))))))
 	      *linear-combinations*)))
@@ -102,11 +103,11 @@
 	  do (return (funcall fn a b res cols batch-size rows))
 	finally (error "No matching fn")))
 
-(defun linear-combination (a x b y)
+(defun linear-combination-into (res a x b y)
   (assert (equalp (array-dimensions x) (array-dimensions y)))
   (loop for (check . fn) in *linear-combinations*
-	when (funcall check x y a b)
-	  do (return (funcall fn a x b y
+	when (funcall check res x y a b)
+	  do (return (funcall fn res a x b y
 			      (array-dimension x 0)
 			      (array-dimension x 1)))
 	finally (error "No matching fn")))
@@ -128,3 +129,13 @@
     (times-transposed-into A B (make-array (list cols rows)
 				:element-type (array-element-type A))
 			   cols batch-size rows)))
+
+(defun linear-update (a x b y)
+  (linear-combination-into x a x b y))
+
+(defun linear-combination (a x b y)
+  (linear-combination-into
+   (make-array (array-dimensions x)
+	       :element-type (array-element-type x))
+   a x b y))
+
