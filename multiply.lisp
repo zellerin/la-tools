@@ -31,6 +31,13 @@
 (defparameter *transpose-multipliers* nil
   "List of discriminating functions and associated x=ax+by functions.")
 
+(defun update-matrix (matrix fn rows cols)
+  "Calculate cells of matrix up to rows and cols."
+  (dotimes (col cols matrix)
+    (dotimes (row rows)
+      (setf (aref matrix row col)
+	    (funcall fn row col)))))
+
 (macrolet
     ((def (element zero a-type &key (b-type a-type) (c-type a-type) (speed 3))
        `(progn
@@ -50,21 +57,20 @@
 				     (,b-type B)
 				     (,c-type res)
 				     (fixnum rows batch-size cols))
-			    (dotimes (col cols res)
-			      (dotimes (row rows)
-				(let ((val ,zero))
-				  (declare (,element val))
-				  (dotimes (item batch-size)
-				    (incf val
-					  (* (aref A ,@a-order)
-					     (aref B ,@b-order)))
-				    (setf (aref res row col) val)))))))
+			    (update-matrix res
+					   (lambda (row col)
+					     (let ((val ,zero))
+					       (declare (,element val))
+					       (dotimes (item batch-size val)
+						 (incf val
+						       (* (aref A ,@a-order)
+							  (aref B ,@b-order))))))
+					   rows cols)))
 			 ,target)))))
 
   (def t 0 (array) :speed 1)			; base case
   (def single-float 0s0 (simple-array single-float))
-  (def single-float 0s0 (simple-array single-float (500 500)))
-  (def double-float 0d0 (simple-array double-float)))
+  (def single-float 0s0 (simple-array single-float (500 500))))
 
 (macrolet
     ((def (element v-type &key (speed 3))
@@ -81,17 +87,16 @@
 			  (,v-type x y res)
 			  (,element a b)
 			  (fixnum rows cols))
-		 (dotimes (col cols res)
-		   (dotimes (row rows)
-		     (setf (aref res row col)
-			   (+ (* a (aref x row col))
-			      (* b (aref y row col))))))))
+		 (update-matrix res
+				(lambda (row col)
+				  (+ (* a (aref x row col))
+				     (* b (aref y row col))))
+				rows cols)))
 	      *linear-combinations*)))
 
   (def t (array) :speed 1) ; base case
   (def single-float (simple-array single-float))
-  (def single-float (simple-array single-float (500 500)))
-  (def double-float (simple-array double-float)))
+  (def single-float (simple-array single-float (500 500))))
 
 (defun find-applicable-fn (pars candidates)
   (cdr (or
