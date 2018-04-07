@@ -39,7 +39,8 @@
 		  and target in '(*multipliers* *transpose-multipliers*)
 		  collect
 		  `(push (cons
-			  (lambda (a b res)
+			  (lambda (a b res &rest more)
+			    (declare (ignore more))
 			    (and (typep a ',a-type)
 				 (typep b ',b-type)
 				 (typep res ',c-type)))
@@ -68,7 +69,8 @@
 (macrolet
     ((def (element v-type &key (speed 3))
        `(push (cons
-	       (lambda (res x y a b)
+	       (lambda (res a x b y &rest more)
+		 (declare (ignore more))
 		 (and (typep x ',v-type)
 		      (typep y ',v-type)
 		      (typep res ',v-type)
@@ -91,26 +93,21 @@
   (def single-float (simple-array single-float (500 500)))
   (def double-float (simple-array double-float)))
 
-(defun times-into (A B res cols batch-size rows)
-  (loop for (check . fn) in *multipliers*
-	when (funcall check a b res)
-	  do (return (funcall fn a b res cols batch-size rows))
-	finally (error "No matching fn")))
+(defun find-applicable-fn (pars candidates)
+  (cdr (or
+	(find-if (lambda (a) (apply a pars))
+		 candidates :key 'car)
+	(error "No mathing function"))))
 
-(defun times-transposed-into (A B res cols batch-size rows)
-  (loop for (check . fn) in *transpose-multipliers*
-	when (funcall check a b res)
-	  do (return (funcall fn a b res cols batch-size rows))
-	finally (error "No matching fn")))
+(defun times-into (&rest pars)
+  (apply (find-applicable-fn pars *multipliers*) pars))
 
-(defun linear-combination-into (res a x b y)
-  (assert (equalp (array-dimensions x) (array-dimensions y)))
-  (loop for (check . fn) in *linear-combinations*
-	when (funcall check res x y a b)
-	  do (return (funcall fn res a x b y
-			      (array-dimension x 0)
-			      (array-dimension x 1)))
-	finally (error "No matching fn")))
+(defun times-transposed-into (&rest pars)
+  (apply (find-applicable-fn pars *transpose-multipliers*) pars))
+
+(defun linear-combination-into (&rest pars)
+  (apply (find-applicable-fn pars *linear-combinations*)
+	 pars))
 
 (defun times (A B)
   (let* ((batch-size (array-dimension A 1))
@@ -131,11 +128,14 @@
 			   cols batch-size rows)))
 
 (defun linear-update (a x b y)
-  (linear-combination-into x a x b y))
+  (assert (equalp (array-dimensions x) (array-dimensions y)))
+  (linear-combination-into x a x b y (array-dimension x 0)
+			   (array-dimension x 1)))
 
 (defun linear-combination (a x b y)
+  (assert (equalp (array-dimensions x) (array-dimensions y)))
   (linear-combination-into
    (make-array (array-dimensions x)
 	       :element-type (array-element-type x))
-   a x b y))
+   a x b y (array-dimension x 0) (array-dimension x 1)))
 

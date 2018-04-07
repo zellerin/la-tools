@@ -42,8 +42,8 @@ The speeds for individual table types and sizes are like this on my machine:
 |  400 |    400 |  100 | single-float |      98.0 | 163265 |
 |  400 |    400 |  200 | single-float |     199.0 | 160804 |
 |  400 |    400 |  400 | single-float |     439.0 | 145786 |
-|  400 |    400 | 1000 | single-float |    1033.0 | 154889 |
-|  400 |    400 | 2000 | single-float |    2079.0 | 153920 |
+|  400 |    400 | 1000 | single-float |    1035.0 | 154589 |
+|  400 |    400 | 2000 | single-float |    2037.0 | 157094 |
 |------+--------+------+--------------+-----------+--------|
 |  400 |    400 |   50 | t            |     289.0 |  27682 |
 #+TBLFM: $5='(org-sbe speed-test (type '$4) (cols $3) (rows $1) (across $2))::$6=round($1*$2*$3/$5)
