@@ -31,6 +31,9 @@
 (defparameter *transpose-multipliers* nil
   "List of discriminating functions and associated x=ax+by functions.")
 
+(defparameter *transpose-rev-multipliers* nil
+  "List of discriminating functions and associated x=ax+by functions.")
+
 (defun update-matrix (matrix fn rows cols)
   "Calculate cells of matrix up to rows and cols."
   (dotimes (col cols matrix)
@@ -41,9 +44,10 @@
 (macrolet
     ((def (element zero a-type &key (b-type a-type) (c-type a-type) (speed 3))
        `(progn
-	  ,@(loop for a-order in '((row item) (item row))
-		  and b-order in '((item col) (item col))
-		  and target in '(*multipliers* *transpose-multipliers*)
+	  ,@(loop for a-order in '((row item) (item row) (row item))
+		  and b-order in '((item col) (item col) (col item))
+		  and target in '(*multipliers* *transpose-multipliers*
+				  *transpose-rev-multipliers*)
 		  collect
 		  `(push (cons
 			  (lambda (a b res &rest more)
@@ -110,6 +114,9 @@
 (defun times-transposed-into (&rest pars)
   (apply (find-applicable-fn pars *transpose-multipliers*) pars))
 
+(defun times-rev-transposed-into (&rest pars)
+  (apply (find-applicable-fn pars *transpose-rev-multipliers*) pars))
+
 (defun linear-combination-into (&rest pars)
   (apply (find-applicable-fn pars *linear-combinations*)
 	 pars))
@@ -120,6 +127,15 @@
 	 (cols (array-dimension B 1)))
     (assert (= batch-size (array-dimension B 0)))
     (times-into A B (make-array (list rows cols)
+				:element-type (array-element-type A))
+		rows batch-size cols)))
+
+(defun times-rev-transposed (A B)
+  (let* ((batch-size (array-dimension A 1))
+	 (rows (array-dimension A 0))
+	 (cols (array-dimension B 0)))
+    (assert (= batch-size (array-dimension B 1)))
+    (times-rev-transposed-into A B (make-array (list rows cols)
 				:element-type (array-element-type A))
 		rows batch-size cols)))
 
