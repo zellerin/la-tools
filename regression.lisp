@@ -6,28 +6,48 @@
 ;;; function: F+½ρ² Tr AA†
 ;;; Variation against A: 2(y'-y)†x + ρ²A
 
-(defun linear-regression-iteration (y A x sigma rho)
-  "Iteration step; modifies A."
-  (let ((dy (linear-combination 1s0 (times x A)
-				-1s0 y)))
-    (values
-     (times-transposed dy dy)
-     dy
-     (linear-update rho A sigma (times-transposed x dy)))))
+(in-package regression)
 
-(defun logistic-regression-iteration (y A x sigma rho)
-  "Iteration step; modifies A to get closer."
-  (let* ((my-y (apply-fn #'float-sigma
-			 (times x A)))
-	 (dy (linear-combination 1s0 my-y -1s0 y))
-	 (f (times-transposed dy dy))
+(defun M- (a b)
+  (linear-combination 1s0 a -1s0 b))
 
-	 (a-diff (times-transposed x (apply-fn2 #'float-dsigma
-						dy my-y))))
-    (values f
-     dy
-     a-diff
-     (linear-update rho A sigma a-diff))))
+(defun times-sigma (X A)
+  "Logistic regression estimate given coefficients A and independent variables X."
+  (apply-fn #'float-sigma (times X A)))
+
+(defun logistic-grad-A (X err Y)
+   (times-transposed X (apply-fn2 #'float-dsigma err Y)))
+
+(defun l-regression-iteration (Y A X sigma rho estimate-fn grad-A-fn)
+  "Update matrix with linear or logistic regression coeficients to
+better match observed data.
+
+Takes as parameter 
+- the model data original regression coefficients matrix A, matrix of
+  the independent values X, matrix of observed values Y
+- the regression process data: rho below 1s0 prevents overfitting, and
+  sigma determines the speed of the regression.
+- the regression model data (functions specific for linear or logistic regression)
+
+Return three values: square of the error vector (difference between
+estimated and provided Y), error vector itself and updated matrix with
+the regression coefficients."
+  (let* ((estimated-Y (funcall estimate-fn X A))
+	 (err (M- estimated-Y y))
+	 (a-diff (funcall grad-A-fn X err estimated-Y)))
+    (values (times-transposed err err)
+	    err (linear-update rho A sigma a-diff))))
+
+(defun logistic-regression-iteration (Y A X sigma rho)
+  "See l-regression-iteration for details."
+  (l-regression-iteration Y A X sigma rho #'times-sigma #'logistic-grad-A))
+
+(defun linear-regression-iteration (Y A X sigma rho)
+  "See l-regression-iteration for details."
+  (l-regression-iteration Y A X sigma rho #'times
+			  (lambda (X err A)
+			    (declare (ignore A))
+			    (times-transposed X err))))
 
 (defun check-linear (count &optional (sampling 20))
   (let ((*test-A* (make-random-array 3 1 1s0)))
