@@ -60,9 +60,11 @@ minimise error function for linear regression of data in file
 This lisp source block generates coefficients =k= and =q= for best fit.
 #+NAME: ex1-lr
 #+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex1/ex1data1.txt"
-(multiple-value-call #'get-lr-coefficients
-  500 (read-comma-file file))
+(multiple-value-call #'linear-get-coefficients (read-comma-file file))
 #+END_SRC
+
+#+RESULTS: ex1-lr
+| -3.8957806 | 1.1930337 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var file="~/src/machine-learning-course/ex1/ex1data1.txt"
@@ -84,9 +86,12 @@ introduce normalization of the data set. This was not done so far.
 
 #+NAME: ex1data2
 #+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex1/ex1data2.txt"
-(multiple-value-call #'get-lr-coefficients
-  500 (read-comma-file file) :sigma -1.25e-2)
+  (multiple-value-call #'linear-get-coefficients
+   (read-comma-file file) :sigma -1.25e-2)
 #+END_SRC
+
+#+RESULTS: ex1data2
+| 89597.81 | 139.21062 | -8737.958 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var file="~/src/machine-learning-course/ex1/ex1data2.txt"
@@ -107,12 +112,12 @@ splot file using "%lf,%lf,%lf\n" title "Training data",\
 * Logistic 
 #+NAME: ex2data1
 #+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
-(multiple-value-call #'get-log-coefficients
-  3000 (read-comma-file file))
+(multiple-value-call #'logistic-get-coefficients
+  (read-comma-file file))
 #+END_SRC
 
 #+RESULTS: ex2data1
-| -21.747768 | 0.1885916 | 0.16767454 |
+| -9.940989 | 0.08323844 | 0.07724458 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
