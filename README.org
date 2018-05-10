@@ -112,21 +112,23 @@ splot file using "%lf,%lf,%lf\n" title "Training data",\
 * Logistic 
 #+NAME: ex2data1
 #+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
-(multiple-value-call #'logistic-get-coefficients
-  (read-comma-file file))
+#+nil (multiple-value-call #'logistic-get-coefficients
+  (read-comma-file2 file))
+(multiple-value-call #'logistic-get-coefficients (read-comma-file2 "ex2data1.txt") :sigma -4.5s0)
 #+END_SRC
 
 #+RESULTS: ex2data1
-| -9.940989 | 0.08323844 | 0.07724458 |
+| 116.66458 | -1.0006036 | 2.4917057 | -11693.544 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
 #+header: :var q=ex2data1[0,0] :var k1=ex2data1[1,0] :var k2=ex2data1[2,0]
+#+header: :var k3=ex2data1[3,0] 
 #+BEGIN_SRC gnuplot :exports code :file ex2data1.svg :exports both
 set key box linestyle -1 left bottom
 plot file using 1:($3 == 1 ? $2 : 1/0) "%lf,%lf,%lf\n" title "1",\
    file using 1:($3 == 0 ? $2 : 1/0) "%lf,%lf,%lf\n" title "0", \
-   (-q-k1*x)/k2
+   (-q-k1*x-k3/x)/k2
 #+END_SRC
 
 #+RESULTS:

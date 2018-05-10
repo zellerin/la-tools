@@ -65,8 +65,9 @@ estimated and provided Y), error vector itself and updated matrix with
 the regression coefficients."
   (let* ((estimated-Y (estimate X A))
 	 (err (M- estimated-Y y))
-	 (a-diff (grad-A X err estimated-Y)))
-    (values (times-transposed err err)
+	 (a-diff (grad-A X (copy-array err) estimated-Y)))
+    (values (print
+	     (times-transposed err err))
 	    err (linear-update rho A sigma a-diff))))
 
 (define-pair test-case (samples indeps &optional (deps 1))
@@ -111,8 +112,8 @@ Returns X, Y and initial A as values."
 Assumes that first row of X is all ones. This corresponds to getting
 linear term, and it is also used for normalization purposes."
   (multiple-value-bind (x norm) (normalize raw-x)
-    (dotimes (i (array-dimension raw-x 0))
-      (print (regression-iteration y A x sigma rho)))
+    (dotimes (i 2000)
+      (regression-iteration y A x sigma rho))
     (make-array (array-dimension A 0)
 		:element-type 'single-float
 		:displaced-to (times norm A))))
