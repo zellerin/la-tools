@@ -63,8 +63,8 @@ the regression coefficients."
   (let* ((estimated-Y (estimate X A))
 	 (err (M- estimated-Y y))
 	 (a-diff (grad-A X (copy-array err) estimated-Y)))
-    (values (print
-	     (times-transposed err err))
+    (values
+	    (times-transposed err err)
 	    err (linear-update rho A sigma a-diff))))
 
 (define-pair test-case (samples indeps &optional (deps 1))
@@ -79,22 +79,31 @@ Returns X, Y and initial A as values."
   `(multiple-value-bind (X Y A) (test-case ,samples ,indeps ,deps)
     ,@body))
 
-(define-pair try-sigmas (y fixed-A x base rho &optional (count 10))
+(define-pair try-sigmas (y raw-x base &key
+			   (fixed-A (make-random-array (array-dimension raw-x 1) 1 2s-2))
+			   (count 10)
+			   (rho 1s0))
   "Try range of sigmas (two orders) around base."
-  (loop for i from -1s0 to 1s0 by 0.1
-	for sigma = (* base (expt 10s0 i))
-	do
-	   (let ((A (copy-array fixed-A)))
-	     (princ sigma)
-	     (dotimes (i count)
-	       (format t " ~10e " (aref (regression-iteration y a x sigma rho) 0 0)))
-	     (terpri))))
+  (multiple-value-bind (x norm) (normalize raw-x)
+    (declare (ignore norm))
+    (loop for i from -1s0 to 1s0 by 0.5
+	  for sigma = (* base (expt 10s0 i))
+	  collect
+	     (let ((A (copy-array fixed-A)))
+	       (cons sigma
+		     (loop for i in count
+			   do
+			       (dotimes (j i)
+				 (regression-iteration y a x sigma rho))
+			       
+		      collect (aref (regression-iteration y a x sigma rho) 0 0 )))))))
 
-(define-pair check-regression (count &optional (sampling 20)
-				   (sigma -6s-3))
+(define-pair check-regression (count &optional
+				     (sampling 20)
+				     (sigma -6s-3))
   "Test COUNT rounds of regression on random matrixes"
   (with-test-case (100 120 1)
-    (try-sigmas Y A X sigma 1s0)
+    (try-sigmas Y X sigma)
     (dotimes (i count)
       (let ((F (regression-iteration Y A X
 				     sigma 1s0)))
@@ -109,7 +118,7 @@ Returns X, Y and initial A as values."
 Assumes that first row of X is all ones. This corresponds to getting
 linear term, and it is also used for normalization purposes."
   (multiple-value-bind (x norm) (normalize raw-x)
-    (dotimes (i 2000)
+    (dotimes (i 4000)
       (regression-iteration y A x sigma rho))
     (make-array (array-dimension A 0)
 		:element-type 'single-float
