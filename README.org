@@ -135,8 +135,10 @@ plot file using 1:($3 == 1 ? $2 : 1/0) "%lf,%lf,%lf\n" title "1",\
 * Testing sigma values
 #+header: :results table
 #+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
-(multiple-value-call #'logistic-try-sigmas (read-comma-file2 file) -1s0 :count '(10 30 100 300 1000 3000)
-:rho 0.999)
+  (multiple-value-call #'logistic-try-sigmas
+    (read-comma-file2 file)
+    -1s0 :count '(10 30 100 300 1000 3000)
+    :rho 0.999)
 #+END_SRC
 
 #+RESULTS:
