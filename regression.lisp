@@ -1,11 +1,8 @@
-(in-package regression)
+;;; -*- mode: lisp -*-
 
-;;; * Linear regression
-;;; model: y'=xA
-;;; Square error: F = Tr (y-y')(y-y')†
-;;; function: F+½ρ² Tr AA†
-;;; Variation against A: 2(y'-y)†x + ρ²A
-
+;;; Note: this is regression in the mathematical sense (linear
+;;; regression and logistic regression - fitting parameters to a
+;;; model), not in the software sense (regression tests)
 (in-package regression)
 
 (defun M- (a b)
@@ -44,7 +41,7 @@
 			(alexandria:symbolicate prefix "-" name))
 		      (flet-list-item (name)
 			`(,name (&rest pars) (apply #',(@ name) pars))))
-	       
+
 	       `(defun ,(@ name) ,pars
 		  ,(format nil docstring-fmt prefix)
 		  (flet ,(mapcar #'flet-list-item *pairs*)
