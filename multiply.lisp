@@ -66,34 +66,32 @@
 	      (single-float 0s0)
 	      (t 0 :a-type array :speed 1)))))
 
-(defparameter *linear-combinations* nil
-  "List of discriminating functions and associated x=ax+by functions.")
+(defun make-linear-combination ()
+  (flet ((def (element &key (v-type `(simple-array ,element (* *))) (speed 3))
+	   (cons
+	    (lambda (res a x b y &rest more)
+	      (declare (ignore more))
+	      (and (typep x v-type)
+		   (typep y v-type)
+		   (typep res v-type)
+		   (typep a element)
+		   (typep b element)))
+	    (compile nil
+		     `(lambda (res a x b y rows cols)
+		       (declare (optimize (speed ,speed) (safety 1) (debug 0))
+				(,v-type x y res)
+				(,element a b)
+				(fixnum rows cols))
+			   (update-matrix res
+					  (lambda (row col)
+					    (+ (* a (aref x row col))
+					       (* b (aref y row col))))
+					  rows cols))))))
 
-(macrolet
-    ((def (element v-type &key (speed 3))
-       `(push (cons
-	       (lambda (res a x b y &rest more)
-		 (declare (ignore more))
-		 (and (typep x ',v-type)
-		      (typep y ',v-type)
-		      (typep res ',v-type)
-		      (typep a ',element)
-		      (typep b ',element)))
-	       (lambda (res a x b y rows cols)
-		 (declare (optimize (speed ,speed) (safety 1) (debug 0))
-			  (,v-type x y res)
-			  (,element a b)
-			  (fixnum rows cols))
-		 (update-matrix res
-				(lambda (row col)
-				  (+ (* a (aref x row col))
-				     (* b (aref y row col))))
-				rows cols)))
-	      *linear-combinations*)))
-
-  (def t (array) :speed 1) ; base case
-  (def single-float (simple-array single-float))
-  (def single-float (simple-array single-float (500 500))))
+    (list
+     (def 'single-float :v-type '(simple-array single-float (500 500)))
+     (def 'single-float)
+     (def t :v-type '(array) :speed 1))))
 
 (defun call-applicable-fn (pars candidates)
   (apply
@@ -117,7 +115,8 @@
 		      (load-time-value (make-fn-list '(row item) '(col item)))))
 
 (defun linear-combination-into (&rest pars)
-  (call-applicable-fn pars *linear-combinations*))
+  (call-applicable-fn pars
+		      (load-time-value  (make-linear-combination))))
 
 (defun times (A B)
   (let* ((batch-size (array-dimension A 1))
