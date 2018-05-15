@@ -41,40 +41,49 @@
       (setf (aref matrix row col)
 	    (funcall fn row col)))))
 
-(macrolet
-    ((def (element zero a-type &key (b-type a-type) (c-type a-type) (speed 3))
-       `(progn
-	  ,@(loop for a-order in '((row item) (item row) (row item))
-		  and b-order in '((item col) (item col) (col item))
-		  and target in '(*multipliers* *transpose-multipliers*
-				  *transpose-rev-multipliers*)
-		  collect
-		  `(push (cons
-			  (lambda (a b res &rest more)
-			    (declare (ignore more))
-			    (and (typep a ',a-type)
-				 (typep b ',b-type)
-				 (typep res ',c-type)))
-			  (lambda (A B res rows batch-size cols)
-			    (declare (optimize (speed ,speed) (safety 2) (debug 0))
-				     (,a-type A)
-				     (,b-type B)
-				     (,c-type res)
-				     (fixnum rows batch-size cols))
-			    (update-matrix res
-					   (lambda (row col)
-					     (let ((val ,zero))
-					       (declare (,element val))
-					       (dotimes (item batch-size val)
-						 (incf val
-						       (* (aref A ,@a-order)
-							  (aref B ,@b-order))))))
-					   rows cols)))
-			 ,target)))))
+(labels
+    ((def-one (element zero
+		       a-order b-order target
+		       &key (a-type `(simple-array ,element)) (b-type a-type) (c-type a-type) (speed 3))
+       (push (cons
+	      (lambda (a b res &rest more)
+		(declare (ignore more))
+		(and (typep a a-type)
+		     (typep b b-type)
+		     (typep res c-type)))
+	      (compile nil
+		       `(lambda (A B res rows batch-size cols)
+			  (flet ((compute-cell (row col)
+				   (declare (optimize (speed ,speed)
+						      (safety 2) (debug 0))
+					    (,a-type A)
+					    (,b-type B)
+					    (,c-type res)
+					    (fixnum rows batch-size cols))
+				   (let ((val ,zero))
+				     (declare (,element val))
+				     (dotimes (item batch-size val)
+				       (incf val
+					     (* (aref A ,@a-order)
+						(aref B ,@b-order)))))))
+			    (update-matrix res #'compute-cell rows cols)))))
+	     (symbol-value target)))
+     (def-nn (element zero &rest more)
+       (apply #'def-one element zero '(row item) '(item col)
+	  '*multipliers* more))
+     (def-tn (element zero &rest more)
+       (apply #'def-one element zero '(item row) '(item col)
+	       '*transpose-multipliers* more))
+     (def-nt (element zero &rest more)
+       (apply #'def-one element zero '(row item) '(col item)
+	  '*transpose-rev-multipliers* more))
+     (def (element zero &rest more)
+       (dolist (fn (list #'def-nn #'def-tn #'def-nt))
+	 (apply fn element zero more))))
 
-  (def t 0 (array) :speed 1)			; base case
-  (def single-float 0s0 (simple-array single-float))
-  (def single-float 0s0 (simple-array single-float (500 500))))
+  
+  (def t 0 :speed 1)
+  (def 'single-float 0s0))
 
 (macrolet
     ((def (element v-type &key (speed 3))
