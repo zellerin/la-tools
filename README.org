@@ -29,23 +29,24 @@ This is speed test with current machine (HP notebook), sbcl,
 #+END_SRC
 
 The speeds for individual table types and sizes are like this on my machine:
+#+NOTE: Use C-c* to recalculate
 #+TBLNAME:
 | rows | across | cols | element-type | time (ms) | per-ms |
 |------+--------+------+--------------+-----------+--------|
-|  500 |    500 |  500 | single-float |     360.0 | 347222 |
+|  500 |    500 |  500 | single-float |     391.0 | 319693 |
 |------+--------+------+--------------+-----------+--------|
-|  100 |    100 |  100 | single-float |       4.0 | 250000 |
-|  200 |    200 |  200 | single-float |      41.0 | 195122 |
-|  400 |    400 |   10 | single-float |       9.0 | 177778 |
-|  400 |    400 |   20 | single-float |      19.0 | 168421 |
-|  400 |    400 |   40 | single-float |      30.0 | 213333 |
-|  400 |    400 |  100 | single-float |      78.0 | 205128 |
-|  400 |    400 |  200 | single-float |     157.0 | 203822 |
-|  400 |    400 |  400 | single-float |     319.0 | 200627 |
-|  400 |    400 | 1000 | single-float |     835.0 | 191617 |
-|  400 |    400 | 2000 | single-float |    1683.0 | 190137 |
+|  100 |    100 |  100 | single-float |       5.0 | 200000 |
+|  200 |    200 |  200 | single-float |      30.0 | 266667 |
+|  400 |    400 |   10 | single-float |       7.0 | 228571 |
+|  400 |    400 |   20 | single-float |      14.0 | 228571 |
+|  400 |    400 |   40 | single-float |      25.0 | 256000 |
+|  400 |    400 |  100 | single-float |      58.0 | 275862 |
+|  400 |    400 |  200 | single-float |     117.0 | 273504 |
+|  400 |    400 |  400 | single-float |     236.0 | 271186 |
+|  400 |    400 | 1000 | single-float |     600.0 | 266667 |
+|  400 |    400 | 2000 | single-float |    1193.0 | 268231 |
 |------+--------+------+--------------+-----------+--------|
-|  400 |    400 |   50 | t            |     289.0 |  27682 |
+|  400 |    400 |   50 | t            |     222.0 |  36036 |
 #+TBLFM: $5='(org-sbe speed-test (type '$4) (cols $3) (rows $1) (across $2))::$6=round($1*$2*$3/$5)
 
 It appears to provide relatively stable number of (rows*cols*across)
