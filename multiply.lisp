@@ -66,19 +66,7 @@
 	      (single-float 0s0)
 	      (t 0 :a-type array :speed 1)))))
 
-(defparameter *multipliers*
-  (make-fn-list '(row item) '(item col))
-  "List of discriminating functions and associated multipliers.")
-
 (defparameter *linear-combinations* nil
-  "List of discriminating functions and associated x=ax+by functions.")
-
-(defparameter *transpose-multipliers*
-  (make-fn-list '(item row) '(item col))
-  "List of discriminating functions and associated x=ax+by functions.")
-
-(defparameter *transpose-rev-multipliers*
-  (make-fn-list '(row item) '(col item))
   "List of discriminating functions and associated x=ax+by functions.")
 
 (macrolet
@@ -114,13 +102,20 @@
 	(error "No matching function"))))
 
 (defun times-into (&rest pars)
-  (apply (find-applicable-fn pars *multipliers*) pars))
+  (apply (find-applicable-fn pars
+			     (load-time-value
+			      (make-fn-list '(row item) '(item col))))
+	 pars))
 
 (defun times-transposed-into (&rest pars)
-  (apply (find-applicable-fn pars *transpose-multipliers*) pars))
+  (apply (find-applicable-fn pars
+			     (load-time-value (make-fn-list '(item row) '(item col))))
+	 pars))
 
 (defun times-rev-transposed-into (&rest pars)
-  (apply (find-applicable-fn pars *transpose-rev-multipliers*) pars))
+  (apply (find-applicable-fn pars
+			     (load-time-value (make-fn-list '(row item) '(col item))))
+	 pars))
 
 (defun linear-combination-into (&rest pars)
   (apply (find-applicable-fn pars *linear-combinations*)
