@@ -95,31 +95,29 @@
   (def single-float (simple-array single-float))
   (def single-float (simple-array single-float (500 500))))
 
-(defun find-applicable-fn (pars candidates)
-  (cdr (or
-	(find-if (lambda (a) (apply a pars))
-		 candidates :key 'car)
-	(error "No matching function"))))
+(defun call-applicable-fn (pars candidates)
+  (apply
+   (cdr (or
+	 (find-if (lambda (a) (apply a pars))
+		  candidates :key 'car)
+	 (error "No matching function")))
+   pars))
 
 (defun times-into (&rest pars)
-  (apply (find-applicable-fn pars
-			     (load-time-value
-			      (make-fn-list '(row item) '(item col))))
-	 pars))
+  (call-applicable-fn pars
+			 (load-time-value
+			  (make-fn-list '(row item) '(item col)))))
 
 (defun times-transposed-into (&rest pars)
-  (apply (find-applicable-fn pars
-			     (load-time-value (make-fn-list '(item row) '(item col))))
-	 pars))
+  (call-applicable-fn pars
+		      (load-time-value (make-fn-list '(item row) '(item col)))))
 
 (defun times-rev-transposed-into (&rest pars)
-  (apply (find-applicable-fn pars
-			     (load-time-value (make-fn-list '(row item) '(col item))))
-	 pars))
+  (call-applicable-fn pars
+		      (load-time-value (make-fn-list '(row item) '(col item)))))
 
 (defun linear-combination-into (&rest pars)
-  (apply (find-applicable-fn pars *linear-combinations*)
-	 pars))
+  (call-applicable-fn pars *linear-combinations*))
 
 (defun times (A B)
   (let* ((batch-size (array-dimension A 1))
