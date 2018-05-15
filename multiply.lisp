@@ -32,8 +32,9 @@
 
 (defun make-fn-list (a-order b-order)
   (flet
-      ((def-one (element zero
-			 &key (a-type `(simple-array ,element)) (b-type a-type) (c-type a-type) (speed 3))
+      ((compute-specialized (element zero
+		 &key (a-type `(simple-array ,element (* *)))
+		   (b-type a-type) (c-type a-type) (speed 3))
 	 (cons
 	  (lambda (a b res &rest more)
 	    (declare (ignore more))
@@ -42,23 +43,28 @@
 		 (typep res c-type)))
 	  (compile nil
 		   `(lambda (A B res rows batch-size cols)
+		      (declare (optimize (speed ,speed)
+					 (safety 2)
+					 (debug 0))
+			       (,a-type A)
+			       (,b-type B)
+			       (,c-type res)
+			       (fixnum rows batch-size cols))
+
 		      (flet ((compute-cell (row col)
-			       (declare (optimize (speed ,speed)
-						  (safety 2) (debug 0))
-					(,a-type A)
-					(,b-type B)
-					(,c-type res)
-					(fixnum rows batch-size cols))
 			       (let ((val ,zero))
 				 (declare (,element val))
 				 (dotimes (item batch-size val)
 				   (incf val
 					 (* (aref A ,@a-order)
 					    (aref B ,@b-order)))))))
+			;; inline helps with known matix size, but in general not.
+			(declare (notinline update-matrix))
 			(update-matrix res #'compute-cell rows cols)))))))
-    (mapcar (lambda (a) (apply #'def-one a))
-	    '((t 0 :speed 1)
-	      ('single-floats 0s0)))))
+    (mapcar (lambda (a) (apply #'compute-specialized a))
+	    '((single-float 0s0 :a-type (simple-array single-float (500 500)))
+	      (single-float 0s0)
+	      (t 0 :a-type array :speed 1)))))
 
 (defparameter *multipliers*
   (make-fn-list '(row item) '(item col))
@@ -158,4 +164,3 @@
    (make-array (array-dimensions x)
 	       :element-type (array-element-type x))
    a x b y (array-dimension x 0) (array-dimension x 1)))
-
