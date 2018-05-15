@@ -22,17 +22,6 @@
 ;;;; no effort to optimize memory access was done, as experiments did
 ;;;; not show it helpful on my machine.
 
-(defparameter *multipliers* nil
-  "List of discriminating functions and associated multipliers.")
-
-(defparameter *linear-combinations* nil
-  "List of discriminating functions and associated x=ax+by functions.")
-
-(defparameter *transpose-multipliers* nil
-  "List of discriminating functions and associated x=ax+by functions.")
-
-(defparameter *transpose-rev-multipliers* nil
-  "List of discriminating functions and associated x=ax+by functions.")
 
 (defun update-matrix (matrix fn rows cols)
   "Calculate cells of matrix up to rows and cols."
@@ -41,49 +30,50 @@
       (setf (aref matrix row col)
 	    (funcall fn row col)))))
 
-(labels
-    ((def-one (element zero
-		       a-order b-order target
-		       &key (a-type `(simple-array ,element)) (b-type a-type) (c-type a-type) (speed 3))
-       (push (cons
-	      (lambda (a b res &rest more)
-		(declare (ignore more))
-		(and (typep a a-type)
-		     (typep b b-type)
-		     (typep res c-type)))
-	      (compile nil
-		       `(lambda (A B res rows batch-size cols)
-			  (flet ((compute-cell (row col)
-				   (declare (optimize (speed ,speed)
-						      (safety 2) (debug 0))
-					    (,a-type A)
-					    (,b-type B)
-					    (,c-type res)
-					    (fixnum rows batch-size cols))
-				   (let ((val ,zero))
-				     (declare (,element val))
-				     (dotimes (item batch-size val)
-				       (incf val
-					     (* (aref A ,@a-order)
-						(aref B ,@b-order)))))))
-			    (update-matrix res #'compute-cell rows cols)))))
-	     (symbol-value target)))
-     (def-nn (element zero &rest more)
-       (apply #'def-one element zero '(row item) '(item col)
-	  '*multipliers* more))
-     (def-tn (element zero &rest more)
-       (apply #'def-one element zero '(item row) '(item col)
-	       '*transpose-multipliers* more))
-     (def-nt (element zero &rest more)
-       (apply #'def-one element zero '(row item) '(col item)
-	  '*transpose-rev-multipliers* more))
-     (def (element zero &rest more)
-       (dolist (fn (list #'def-nn #'def-tn #'def-nt))
-	 (apply fn element zero more))))
+(defun make-fn-list (a-order b-order)
+  (flet
+      ((def-one (element zero
+			 &key (a-type `(simple-array ,element)) (b-type a-type) (c-type a-type) (speed 3))
+	 (cons
+	  (lambda (a b res &rest more)
+	    (declare (ignore more))
+	    (and (typep a a-type)
+		 (typep b b-type)
+		 (typep res c-type)))
+	  (compile nil
+		   `(lambda (A B res rows batch-size cols)
+		      (flet ((compute-cell (row col)
+			       (declare (optimize (speed ,speed)
+						  (safety 2) (debug 0))
+					(,a-type A)
+					(,b-type B)
+					(,c-type res)
+					(fixnum rows batch-size cols))
+			       (let ((val ,zero))
+				 (declare (,element val))
+				 (dotimes (item batch-size val)
+				   (incf val
+					 (* (aref A ,@a-order)
+					    (aref B ,@b-order)))))))
+			(update-matrix res #'compute-cell rows cols)))))))
+    (mapcar (lambda (a) (apply #'def-one a))
+	    '((t 0 :speed 1)
+	      ('single-floats 0s0)))))
 
-  
-  (def t 0 :speed 1)
-  (def 'single-float 0s0))
+(defparameter *multipliers*
+  (make-fn-list '(row item) '(item col))
+  "List of discriminating functions and associated multipliers.")
+
+(defparameter *linear-combinations* nil
+  "List of discriminating functions and associated x=ax+by functions.")
+
+(defparameter *transpose-multipliers*
+  (make-fn-list '(item row) '(item col))
+  "List of discriminating functions and associated x=ax+by functions.")
+
+(defparameter *transpose-rev-multipliers*
+  (make-fn-list '(row item) '(col item))
+  "List of discriminating functions and associated x=ax+by functions.")
 
 (macrolet
     ((def (element v-type &key (speed 3))
