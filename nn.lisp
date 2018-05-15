@@ -1,51 +1,66 @@
 (in-package regression)
 
-;; neural network: 10 input cells, 3 middle cells, 5 output cells
-(defvar *a* (make-random-array 10 3 1.0))
-(defvar *b* (make-random-array 3 1 1.0)) ; hidden final
+;; Neural network is represented by a vector of transformation matrixes.
+;; Last transformation is logistic or linear, other are logistic
 
-(defvar *guess-a* (make-random-array 10 3 1.0))
-(defvar *guess-b* (make-random-array 3 1 1.0))
+(define-pair nn-estimate (X0 As)
+    "Propagate X values across neural network with last layer ~(~A~).
 
+Return array of X_i+1 and final Y"
+  (loop
+    with len = (length As)
+    with res = (make-array (1+ len))
+    initially (setf (aref res 0) X0)
+    for i from 0 to len
+    for A across As
+    for X = (aref res i)
+    do (setf (aref res (1+ i))
+	     (if (= i len)
+		 (estimate X A)
+		 (logistic-estimate X A)))
+    finally (return res)))
 
-(defun true-predict (x)
-  (times (apply-fn #'float-sigma
-		   (times x *a*))
-	 *b*))
+(defun linear-propagate-error (err A Y)
+  (declare (ignore Y))
+  (times-rev-transposed A err))
 
-(defvar *xses* (make-random-array 50 10 1s0))
-(defvar *yses* (true-predict *xses*))
+(defun logistic-propagate-error (err A Y)
+  (times-rev-transposed
+   (apply-fn2 #'float-dsigma (copy-array err) Y) A))
 
-(defun forward-layer (x A)
-  (apply-fn #'float-sigma (times x A)) ; cases hidden
-)
+(eval-when (:compile-toplevel)
+  (pushnew  'propagate-error *pairs*))
 
-(defun backward-linear-layer (dF/dy x A)
-  ;; y        cases  y-size
-  ;; dF/dy    cases y-sizes
-  ;; A        x-size y-size
-  ;; x        cases  x-size
+(define-pair nn-backpropagate (Yn Xs As sigmas rho)
+    "Backpropagate neural network with last term ~(~A~)"
+    (loop with len = (length As)
+	  with orig-err  = (M- (aref Xs len) Yn)
+	  with err = orig-err
+	  for i from len downto 1
+	  for sigma across sigmas
+	  for A = (aref As (1- i))
+	  for Y = (aref Xs i)
+	  for X = (aref Xs (1- i))
+	  for grad-A = (grad-A X (copy-array err) Y)
+	  do
+	     (linear-update rho A sigma grad-A)
+	     (setq err
+		   (if (= i (1- len))
+			       (propagate-error err A Y)
+			       (logistic-propagate-error err A Y)))
 
-  ;; dF/dA,   x-size y-size
-  ;; dF/dx+   x-size cases
-  (values (times-transposed x dF/dy)
-	  (times-rev-transposed dF/dy A)))
+	  finally (return (times-transposed orig-err orig-err))))
 
-(defun backwars-logistic-layer (y dF/dy x A)
-  (backward-linear-layer (apply-fn2 #'float-dsigma dF/dy y)
-			 x A))
-
-(defun forward (A B)
-  (let* ((middle (apply-fn #'float-sigma (times *xses* A))) ; cases hidden
-	 (final (times middle B))) ; cases 1
-    (values middle final)))
-
-(defun backward (x hidden y A B &optional (a-sigma -0.3) (b-sigma -0.3) (rho 1s0))
-  ;; copy from logistic-regression-iteration
-  (let ((dy (linear-combination -1s0 y 1s0 *yses*)))
-    (multiple-value-bind (var-B dF/dhidden) (backward-linear-layer dy hidden B)
-      (multiple-value-bind (var-A dF/dx) (backwars-logistic-layer hidden dF/dhidden x A)
-	(declare (ignore dF/dx))
-	(linear-update rho A a-sigma var-A)
-	(linear-update rho B b-sigma var-B)
-	(times-transposed dy dy)))))
+;;; Test case
+(defun test-nn ()
+  (let* ((X (make-random-array 10 5 1s0))
+	 (Y (aref
+	     (linear-nn-estimate X
+				 (vector (make-random-array 5 2 1s0)
+					 (make-random-array 2 1 1s0)))
+	     2))
+	 (A (vector (make-random-array 5 2 1s0)
+		    (make-random-array 2 1 1s0))))
+    (loop for i from 0 to 3000
+	  for Xs = (linear-nn-estimate X A)
+	  do (print (linear-nn-backpropagate Y Xs A #(-1s0 -1s0) 0.9999)))))
