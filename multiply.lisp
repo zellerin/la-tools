@@ -106,7 +106,7 @@
   (cdr (or
 	(find-if (lambda (a) (apply a pars))
 		 candidates :key 'car)
-	(error "No mathing function"))))
+	(error "No matching function"))))
 
 (defun times-into (&rest pars)
   (apply (find-applicable-fn pars *multipliers*) pars))
