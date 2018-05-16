@@ -82,12 +82,13 @@ Returns X, Y and initial A as values."
 (define-pair try-sigmas (y raw-x base &key
 			   (fixed-A (make-random-array (array-dimension raw-x 1) 1 2s-2))
 			   (count 10)
-			   (rho 1s0))
+			   (alpha 0s0))
   "Try range of sigmas (two orders) around base."
   (multiple-value-bind (x norm) (normalize raw-x)
     (declare (ignore norm))
     (loop for i from -1s0 to 1s0 by 0.5
 	  for sigma = (* base (expt 10s0 i))
+	  for rho = (- 1s0 (* alpha sigma))
 	  collect
 	     (let ((A (copy-array fixed-A)))
 	       (cons sigma
@@ -112,7 +113,8 @@ Returns X, Y and initial A as values."
 
 (define-pair get-coefficients (y raw-x &key
 				 (A (make-random-array (array-dimension raw-x 1) 1 2s-2))
-				 (sigma (- (/ 1s0 (array-dimension y 0)))) (rho 1s0))
+				 (sigma (- (/ 1s0 (array-dimension y 0)))) (alpha 0s0)
+				 (rho (+ 1s0 (* alpha sigma))))
     "Get coefficients for ~(~A~) regression from data.
 
 Assumes that first row of X is all ones. This corresponds to getting
