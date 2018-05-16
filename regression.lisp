@@ -35,6 +35,15 @@
   `(progn
      (eval-when (:compile-toplevel)
        (pushnew ',name *pairs*))
+     (defun ,name ,pars
+       ,docstring-fmt
+       (declare (ignorable ,@(mapcar
+			      ;; cannot use ignore, as parameter may
+			      ;; be used in default calculation for
+			      ;; optional/key parameter
+			      (lambda (a) (if (consp a) (car a) a))
+			   (set-difference pars '(&aux &rest &key &optional)))))
+       (error "This function cannot be called outside DEFINE-PAIR"))
      ,@(loop for prefix in '("LINEAR" "LOGISTIC")
 	     collect
 	     (labels ((@ (name)
@@ -67,6 +76,17 @@ the regression coefficients."
 	    (trace-times-transposed err err)
 	    err (linear-update rho A sigma a-diff))))
 
+(define-pair regression-iterations (Y A X sigma alpha count
+				      &optional out (sampling 20)
+				      &aux (rho (+ 1s0 (* alpha sigma))))
+    "Run COUNT iterations, optionally logging error(s)."
+  (dotimes (i count)
+    (let ((err (regression-iteration y a x sigma rho)))
+      (when (and out (zerop (mod i sampling)))
+	(let ((A-err (* alpha 2s0 (trace-times-transposed A A))))
+	  (format out "~a ~a ~a~%"
+		  err A-err (+ err A-err)))))))
+
 (define-pair test-case (samples indeps &optional (deps 1))
     "Make a test case for ~(~A~) regression.
 
@@ -81,23 +101,20 @@ Returns X, Y and initial A as values."
 
 (define-pair try-sigmas (y raw-x base &key
 			   (fixed-A (make-random-array (array-dimension raw-x 1) 1 2s-2))
-			   (count 10)
-			   (alpha 0s0))
+			   (count 1000)
+			   (alpha 0s0)
+			   (sampling 30)
+			   out)
   "Try range of sigmas (two orders) around base."
   (multiple-value-bind (x norm) (normalize raw-x)
     (declare (ignore norm))
     (loop for i from -1s0 to 1s0 by 0.5
 	  for sigma = (* base (expt 10s0 i))
 	  for rho = (- 1s0 (* alpha sigma))
+	  do (format out "~2%\"~a\"~%" sigma)
 	  collect
 	     (let ((A (copy-array fixed-A)))
-	       (cons sigma
-		     (loop for i in count
-			   do
-			       (dotimes (j i)
-				 (regression-iteration y a x sigma rho))
-			       
-			   collect (regression-iteration y a x sigma rho)))))))
+	       (regression-iterations y a x sigma alpha count out sampling)))))
 
 (define-pair check-regression (count &optional
 				     (sampling 20)
@@ -106,10 +123,9 @@ Returns X, Y and initial A as values."
   (with-test-case (100 120 1)
     (try-sigmas Y X sigma)
     (dotimes (i count)
-      (let ((F (regression-iteration Y A X
-				     sigma 1s0)))
-	(when (zerop (mod i sampling))
-	  (print F))))))
+      (let ((F (regression-iterations Y A X
+				      sigma 0s0
+				      out sampling)))))))
 
 (define-pair get-coefficients (y raw-x &key
 				 (A (make-random-array (array-dimension raw-x 1) 1 2s-2))

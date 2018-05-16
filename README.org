@@ -113,11 +113,11 @@ splot file using "%lf,%lf,%lf\n" title "Training data",\
 * Logistic
 #+NAME: ex2data1
 #+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
-(multiple-value-call #'logistic-get-coefficients (read-comma-file2 file) :sigma -1s0 :rho 0.9999)
+(multiple-value-call #'logistic-get-coefficients (read-comma-file2 file) :sigma -1s0 :alpha 0.0001)
 #+END_SRC
 
 #+RESULTS: ex2data1
-| 62.191525 | -0.5268614 | 1.3495767 | -6334.4214 |
+| 62.189713 | -0.52684546 | 1.3495339 | -6334.2275 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
@@ -125,6 +125,8 @@ The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var k3=ex2data1[3,0]
 #+BEGIN_SRC gnuplot :exports code :file ex2data1.svg :exports both
 set key box linestyle -1 right top
+set yrange [*:*]
+set xrange [*:*]
 plot file using 1:($3 == 1 ? $2 : 1/0) "%lf,%lf,%lf\n" title "1",\
    file using 1:($3 == 0 ? $2 : 1/0) "%lf,%lf,%lf\n" title "0", \
    (-q-k1*x-k3/x)/k2
@@ -134,44 +136,36 @@ plot file using 1:($3 == 1 ? $2 : 1/0) "%lf,%lf,%lf\n" title "1",\
 [[file:ex2data1.svg]]
 
 * Testing sigma values
-#+header: :results table :exports both
-#+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
-  (multiple-value-call #'logistic-try-sigmas
-    (read-comma-file2 file)
-    -1s0 :count '(10 30 100 300 1000 3000)
-    :alpha -0.001)
-#+END_SRC
-
-#+RESULTS:
-|        -0.1 | 6.3692617 |  4.8979435 |  3.725777 | 2.5872898 | 1.6534188 | 1.1374117 |
-| -0.31622776 | 4.7227216 |   3.717821 | 2.5447087 | 1.6654567 | 1.1283747 | 0.9603763 |
-|        -1.0 | 4.5095177 |  2.2964587 | 2.1786563 |  1.651594 | 1.0812421 | 1.1020235 |
-|  -3.1622777 | 11.805706 |  4.7092443 |  2.269913 |  4.750626 | 3.3716142 | 3.4681864 |
-|       -10.0 |      12.0 | 11.9999895 |  9.114239 |  7.634916 | 2.7917109 |  2.617542 |
-
+Generate file with errors of the regression for different sigmas.
 #+header: :results none
 #+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
-  (with-open-file (*standard-output* "/tmp/sigmas.txt"
+  (with-open-file (out "/tmp/sigmas.txt"
 				     :direction :output :if-exists :supersede)
-    (princ "#")
-    (apply #'map nil
-	   (lambda (&rest data) (format t "~{~A~^ ~}~%" data))
-	   (multiple-value-call #'logistic-try-sigmas
-				    (read-comma-file2 file)
-				    -1s0 :count (alexandria:iota 50 :step 60 :start 400)
-				    :alpha -0.001)))
+    (multiple-value-call #'logistic-try-sigmas
+      (read-comma-file2 file)
+      -3s-1 :alpha 0.001 :out out
+      :sampling 20
+      :count 5000))
 #+END_SRC
 
 #+BEGIN_SRC gnuplot :exports code :file err.svg :exports both :var file="/tmp/sigmas.txt"
-plot \
-   file using 1 title "0" with lines, \
-   file using 2 title "1" with lines, \
-   file using 3 title "2" with lines, \
-   file using 4 title "3" with lines
+set yrange [0:5]
+set xrange [*:*]
+set key box linestyle -1 left bottom
+plot for [IDX=0:4] file i IDX u 1 w lines title columnheader(1)
 #+END_SRC
 
 #+RESULTS:
 [[file:err.svg]]
+#+BEGIN_SRC gnuplot :exports code :file err-both.svg :exports both :var file="/tmp/sigmas.txt"
+set yrange [0:5]
+set xrange [*:*]
+set key box linestyle -1 left bottom
+plot for [IDX=0:4] file i IDX u 3 w lines title columnheader(1)
+#+END_SRC
+
+#+RESULTS:
+[[file:err-both.svg]]
 
 
 * BUGS/next steps
