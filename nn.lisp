@@ -49,7 +49,7 @@ Return array of X_i+1 and final Y"
 			       (propagate-error err A Y)
 			       (logistic-propagate-error err A Y)))
 
-	  finally (return (times-transposed orig-err orig-err))))
+	  finally (return (trace-times-transposed orig-err orig-err))))
 
 ;;; Test case
 (defun test-nn ()

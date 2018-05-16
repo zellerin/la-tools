@@ -30,26 +30,29 @@
       (setf (aref matrix row col)
 	    (funcall fn row col)))))
 
+(defun trace-by-fn (fn rows)
+  (let ((res 0))
+    (dotimes (i rows res)
+      (incf res (funcall fn i i)))))
+
 (defun make-fn-list (a-order b-order)
   (flet
       ((compute-specialized (element zero
 		 &key (a-type `(simple-array ,element (* *)))
-		   (b-type a-type) (c-type a-type) (speed 3))
+		   (b-type a-type) (speed 3))
 	 (cons
-	  (lambda (a b res &rest more)
+	  (lambda (a b &rest more)
 	    (declare (ignore more))
 	    (and (typep a a-type)
-		 (typep b b-type)
-		 (typep res c-type)))
+		 (typep b b-type)))
 	  (compile nil
-		   `(lambda (A B res rows batch-size cols)
+		   `(lambda (A B batch-size)
 		      (declare (optimize (speed ,speed)
 					 (safety 2)
 					 (debug 0))
 			       (,a-type A)
 			       (,b-type B)
-			       (,c-type res)
-			       (fixnum rows batch-size cols))
+			       (fixnum batch-size))
 
 		      (flet ((compute-cell (row col)
 			       (let ((val ,zero))
@@ -59,8 +62,8 @@
 					 (* (aref A ,@a-order)
 					    (aref B ,@b-order)))))))
 			;; inline helps with known matix size, but in general not.
-			(declare (notinline update-matrix))
-			(update-matrix res #'compute-cell rows cols)))))))
+			#'compute-cell
+			#+nil(update-matrix res #'compute-cell rows cols)))))))
     (mapcar (lambda (a) (apply #'compute-specialized a))
 	    '((single-float 0s0 :a-type (simple-array single-float (500 500)))
 	      (single-float 0s0)
@@ -93,26 +96,39 @@
      (def 'single-float)
      (def t :v-type '(array) :speed 1))))
 
-(defun call-applicable-fn (pars candidates)
-  (apply
+(defun find-applicable-fn (pars candidates)
    (cdr (or
 	 (find-if (lambda (a) (apply a pars))
 		  candidates :key 'car)
-	 (error "No matching function")))
+	 (error "No matching function")))  )
+
+(defun call-applicable-fn (pars candidates)
+  (apply
+   (find-applicable-fn pars candidates)
    pars))
 
-(defun times-into (&rest pars)
-  (call-applicable-fn pars
-			 (load-time-value
-			  (make-fn-list '(row item) '(item col)))))
+(defun times-into (rows cols res &rest pars)
+  (update-matrix res
+		 (call-applicable-fn pars
+				     (load-time-value
+				      (make-fn-list '(row item) '(item col))))
+		 rows cols))
 
-(defun times-transposed-into (&rest pars)
-  (call-applicable-fn pars
-		      (load-time-value (make-fn-list '(item row) '(item col)))))
+(let ((fns (load-time-value (make-fn-list '(item row) '(item col)))))
+  (defun times-transposed-into (rows cols res &rest pars)
+    (update-matrix res
+		   (call-applicable-fn pars fns)
+		   rows cols))
 
-(defun times-rev-transposed-into (&rest pars)
-  (call-applicable-fn pars
-		      (load-time-value (make-fn-list '(row item) '(col item)))))
+  (defun trace-times-transposed* (rows &rest pars)
+    (trace-by-fn (call-applicable-fn pars fns)
+		 rows)))
+
+(defun times-rev-transposed-into (rows cols res &rest pars)
+  (update-matrix res
+		 (call-applicable-fn pars
+				     (load-time-value (make-fn-list '(row item) '(col item))))
+		 rows cols))
 
 (defun linear-combination-into (&rest pars)
   (call-applicable-fn pars
@@ -123,27 +139,43 @@
 	 (rows (array-dimension A 0))
 	 (cols (array-dimension B 1)))
     (assert (= batch-size (array-dimension B 0)))
-    (times-into A B (make-array (list rows cols)
-				:element-type (array-element-type A))
-		rows batch-size cols)))
+    (times-into rows cols
+		(make-array (list rows cols)
+			    :element-type (array-element-type A))
+		A B 
+		batch-size)))
 
 (defun times-rev-transposed (A B)
   (let* ((batch-size (array-dimension A 1))
 	 (rows (array-dimension A 0))
 	 (cols (array-dimension B 0)))
     (assert (= batch-size (array-dimension B 1)))
-    (times-rev-transposed-into A B (make-array (list rows cols)
-				:element-type (array-element-type A))
-		rows batch-size cols)))
+    (times-rev-transposed-into rows cols
+			        (make-array (list rows cols)
+					    :element-type (array-element-type A))
+				A B
+				batch-size)))
 
 (defun times-transposed (A B)
   (let* ((batch-size (array-dimension A 0))
-	 (cols (array-dimension A 1))
-	 (rows (array-dimension B 1)))
+	 (rows (array-dimension A 1))
+	 (cols (array-dimension B 1)))
     (assert (= batch-size (array-dimension B 0)))
-    (times-transposed-into A B (make-array (list cols rows)
-				:element-type (array-element-type A))
-			   cols batch-size rows)))
+    (times-transposed-into rows cols
+			   (make-array (list rows cols)
+				       :element-type (array-element-type A))
+			   A B
+			   batch-size)))
+
+(defun trace-times-transposed (A B)
+  (let* ((batch-size (array-dimension A 0))
+	 (rows (array-dimension A 1))
+	 (cols (array-dimension B 1)))
+    (assert (= batch-size (array-dimension B 0)))
+    (assert (= cols rows))
+    (trace-times-transposed* rows
+			     A B
+			     batch-size)))
 
 (defun linear-update (a x b y)
   (assert (equalp (array-dimensions x) (array-dimensions y)))

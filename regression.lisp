@@ -64,7 +64,7 @@ the regression coefficients."
 	 (err (M- estimated-Y y))
 	 (a-diff (grad-A X (copy-array err) estimated-Y)))
     (values
-	    (times-transposed err err)
+	    (trace-times-transposed err err)
 	    err (linear-update rho A sigma a-diff))))
 
 (define-pair test-case (samples indeps &optional (deps 1))
@@ -96,7 +96,7 @@ Returns X, Y and initial A as values."
 			       (dotimes (j i)
 				 (regression-iteration y a x sigma rho))
 			       
-		      collect (aref (regression-iteration y a x sigma rho) 0 0 )))))))
+			   collect (regression-iteration y a x sigma rho)))))))
 
 (define-pair check-regression (count &optional
 				     (sampling 20)
@@ -108,7 +108,7 @@ Returns X, Y and initial A as values."
       (let ((F (regression-iteration Y A X
 				     sigma 1s0)))
 	(when (zerop (mod i sampling))
-	  (print (aref F 0 0)))))))
+	  (print F))))))
 
 (define-pair get-coefficients (y raw-x &key
 				 (A (make-random-array (array-dimension raw-x 1) 1 2s-2))
