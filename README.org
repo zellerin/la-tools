@@ -4,11 +4,24 @@ Some time ago, I took a course on ML with examples in
 Octave/Matlab. This repository tries to redo the stuff in Common Lisp.
 
 * Linear algebra
-I need linear combinations and matrix (including
-   row and column vector) multiplication. I met quite a few LA
-   libraries, some native, some using FFI, and most of them is a bit
-   too complicated. Also, I wanted to get a feeling on speed of simple
-   code.
+I need linear combinations and matrix (including row and column
+vector) multiplication. I met quite a few LA libraries, some native,
+some using FFI, and most of them is a bit too complicated. Also, I
+wanted to get a feeling on speed of simple code.
+
+So I rewrote a simple implementation of some LA operations. The only
+tricky part is that there are sometimes several functions to calculate
+value of cell in a matrix, each for different type of source (e.g.,
+single float and generic).
+
+Implemented high-level functions are:
+| Function             |      | Docstring                                   |
+|----------------------+------+---------------------------------------------|
+| times                | A⋅B  | Return matrix product =A⋅B=. Nondestructive.  |
+| times-transposed     | Aᵀ⋅B | Return matrix product =Aᵀ⋅B=. Nondestructive. |
+| times-rev-transposed | A⋅Bᵀ | Return matrix product =A⋅Bᵀ=. Nondestructive. |
+|----------------------+------+---------------------------------------------|
+#+TBLFM: $3='(sly-eval '(cl:let ((line (cl:documentation (cl:intern (cl:string-upcase $1) 'LINEAR-ALGEBRA) 'cl:function))) (cl:subseq line 0 (cl:position ?\^J line :key 'cl:char-code))))
 
 ** Speed test
    :PROPERTIES:

@@ -135,6 +135,10 @@
 		      (load-time-value  (make-linear-combination))))
 
 (defun times (A B)
+  "Return matrix product =A⋅B=. Nondestructive.
+
+Matrixes are represented as arrays both of input and output.
+Signal error if A and B are not matrices, or if the number of rows in A does not match columns in B."
   (let* ((batch-size (array-dimension A 1))
 	 (rows (array-dimension A 0))
 	 (cols (array-dimension B 1)))
@@ -146,6 +150,8 @@
 		batch-size)))
 
 (defun times-rev-transposed (A B)
+  "Return matrix product =A⋅Bᵀ=. Nondestructive."
+
   (let* ((batch-size (array-dimension A 1))
 	 (rows (array-dimension A 0))
 	 (cols (array-dimension B 0)))
@@ -157,6 +163,7 @@
 				batch-size)))
 
 (defun times-transposed (A B)
+  "Return matrix product =Aᵀ⋅B=. Nondestructive."
   (let* ((batch-size (array-dimension A 0))
 	 (rows (array-dimension A 1))
 	 (cols (array-dimension B 1)))
