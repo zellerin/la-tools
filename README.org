@@ -135,6 +135,44 @@ plot file using 1:($3 == 1 ? $2 : 1/0) "%lf,%lf,%lf\n" title "1",\
 #+RESULTS:
 [[file:ex2data1.svg]]
 
+
+* Speed of regression
+
+Before trying to speed up the regression, lets us measure how long it
+takes and how much it conses.
+#+BEGIN_SRC lisp :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
+  (with-output-to-string (*trace-output*)
+    (time
+     (multiple-value-call #'logistic-get-coefficients
+       (read-comma-file2 file)
+       :sigma -1s0 :alpha 0.0001)))
+#+END_SRC
+
+#+RESULTS:
+: Evaluation took:
+:   0.094 seconds of real time
+:   0.093389 seconds of total run time (0.093389 user, 0.000000 system)
+:   98.94% CPU
+:   224,204,985 processor cycles
+:   11,886,208 bytes consed
+:   
+
+We will not be able to get below what reading file itself takes.
+#+BEGIN_SRC lisp :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
+  (with-output-to-string (*trace-output*)
+    (time
+       (read-comma-file2 file)))
+#+END_SRC
+
+#+RESULTS:
+: Evaluation took:
+:   0.002 seconds of real time
+:   0.001888 seconds of total run time (0.001888 user, 0.000000 system)
+:   100.00% CPU
+:   4,565,640 processor cycles
+:   80,144 bytes consed
+:   
+
 * Testing sigma values
 Generate file with errors of the regression for different sigmas.
 #+header: :results none
