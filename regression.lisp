@@ -129,15 +129,15 @@ Returns X, Y and initial A as values."
 
 (define-pair get-coefficients (y raw-x &key
 				 (A (make-random-array (array-dimension raw-x 1) 1 2s-2))
-				 (sigma (- (/ 1s0 (array-dimension y 0)))) (alpha 0s0)
-				 (rho (+ 1s0 (* alpha sigma))))
+				 (sigma (- (/ 1s0 (array-dimension y 0))))
+				 (alpha 0s0)
+				 out)
     "Get coefficients for ~(~A~) regression from data.
 
 Assumes that first row of X is all ones. This corresponds to getting
 linear term, and it is also used for normalization purposes."
   (multiple-value-bind (x norm) (normalize raw-x)
-    (dotimes (i 4000)
-      (regression-iteration y A x sigma rho))
+    (regression-iterations y A x sigma alpha 4000 out)
     (make-array (array-dimension A 0)
 		:element-type 'single-float
 		:displaced-to (times norm A))))
