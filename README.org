@@ -4,28 +4,36 @@ Some time ago, I took a course on ML with examples in
 Octave/Matlab. This repository tries to redo the stuff in Common Lisp.
 
 * Linear algebra
+  :PROPERTIES:
+  :ID:       22295238-7f56-45a2-bd78-d918c008b58b
+  :END:
 I need linear combinations and matrix (including row and column
 vector) multiplication. I met quite a few LA libraries, some native,
 some using FFI, and most of them is a bit too complicated. Also, I
 wanted to get a feeling on speed of simple code.
 
 So I rewrote a simple implementation of some LA operations. The only
-tricky part is that there are sometimes several functions to calculate
+non-obvious part is that there are sometimes several functions to calculate
 value of cell in a matrix, each for different type of source (e.g.,
 single float and generic).
 
 Implemented high-level functions are:
-| Function             |      | Docstring                                   |
-|----------------------+------+---------------------------------------------|
-| times                | A⋅B  | Return matrix product =A⋅B=. Nondestructive.  |
-| times-transposed     | Aᵀ⋅B | Return matrix product =Aᵀ⋅B=. Nondestructive. |
-| times-rev-transposed | A⋅Bᵀ | Return matrix product =A⋅Bᵀ=. Nondestructive. |
-|----------------------+------+---------------------------------------------|
-#+TBLFM: $3='(sly-eval '(cl:let ((line (cl:documentation (cl:intern (cl:string-upcase $1) 'LINEAR-ALGEBRA) 'cl:function))) (cl:subseq line 0 (cl:position ?\^J line :key 'cl:char-code))))
+| Function               | Docstring                                   | Used to                    |
+|------------------------+---------------------------------------------+----------------------------|
+| times                  | Return matrix product =A⋅B=. Nondestructive.  | Calculate LR estimate      |
+| times-transposed       | Return matrix product =Aᵀ⋅B=. Nondestructive. | Calculate LR gradient      |
+| times-rev-transposed   | Return matrix product =A⋅Bᵀ=. Nondestructive. | Backpropagate neural net   |
+| trace-times-transposed | Return trace of matrix product, =Tr Aᵀ⋅B=     | Calculate LR cost function |
+|------------------------+---------------------------------------------+----------------------------|
+| linear-update          | Modify X to hold =aX+bY= and return it.       |                            |
+| linear-combination     | Return =aX+bY=. Nondestructive.               |                            |
+| M-                     | Return matrix difference, =A-B=               | Error calculation, ...     |
+#+TBLFM: $2='(sly-eval '(cl:let ((line (cl:documentation (cl:intern (cl:string-upcase $1) 'LINEAR-ALGEBRA) 'cl:function))) (cl:subseq line 0 (cl:position ?\^J line :key 'cl:char-code))))
 
 ** Speed test
    :PROPERTIES:
    :ORDERED:  t
+   :ID:       db78f098-a6c4-457e-84d6-6d6ec6601026
    :END:
 This is speed test with current machine (HP notebook), sbcl,
  and safety level in the code 2
@@ -65,11 +73,34 @@ The speeds for individual table types and sizes are like this on my machine:
 It appears to provide relatively stable number of (rows*cols*across)
 field in the tested ranges for floats.
 
+
 * Linear regression in one variable
 
 This is exercise 1 of the course. Gradient descent method is used to
-minimise error function for linear regression of data in file
+minimise cost function for linear regression.
+| Function                     | Docstring (first line)                                                          |
+|------------------------------+---------------------------------------------------------------------------------|
+| linear-estimate              | Linear regression estimate given coefficients A and independent variables X.    |
+| linear-grad-A                | Gradient of error of linear cost function.                                      |
+|------------------------------+---------------------------------------------------------------------------------|
+| linear-regression-iteration  | Update matrix with linear regression coeficients to better match observed data. |
+| linear-regression-iterations | Run COUNT linear iterations, optionally logging error(s).                       |
+|------------------------------+---------------------------------------------------------------------------------|
+#+TBLFM: $2='(sly-eval '(cl:let ((line (cl:documentation (cl:intern (cl:string-upcase $1) 'REGRESSION) 'cl:function))) (cl:subseq line 0 (cl:position ?\^J line :key 'cl:char-code))))
+
+Key function is =linear-regression-iterations= that has docstring
+#+BEGIN_SRC lisp :package regression 
+(documentation #'linear-regression-iterations t)
+#+END_SRC
+
+#+RESULTS:
+: NIL
+
+of data in file
 =ex1data1.txt= that is part of the exercise and can be found on-line.
+
+
+
 
 This lisp source block generates coefficients =k= and =q= for best fit.
 #+NAME: ex1-lr
@@ -201,6 +232,9 @@ We will not be able to get below what reading file itself takes.
 :   
 
 * Testing sigma values
+  :PROPERTIES:
+  :ID:       56ce1f87-af8b-43f6-bad0-bf7c4d74a9f3
+  :END:
 Generate file with errors of the regression for different sigmas.
 #+header: :results none
 #+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
@@ -240,3 +274,9 @@ plot for [IDX=0:4] file i IDX u 3 w lines title columnheader(1)
 - [X] Normalization of X is missing
 - [X] Better optimizer for logistic example <- fixed a bit by scaling
 - [ ] Do not regularize A_0 (why?)
+
+
+* Emacs/Org notes
+Some employed in this file
+- Use org-table functions to get [[id:22295238-7f56-45a2-bd78-d918c008b58b][docstring of the Lisp functions]] and fill in [[id:db78f098-a6c4-457e-84d6-6d6ec6601026][multiplication speed]]
+- Gnuplot technique to [[id:56ce1f87-af8b-43f6-bad0-bf7c4d74a9f3][plot several data parts]] of file is new to me
