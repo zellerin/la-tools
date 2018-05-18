@@ -24,7 +24,7 @@
 
 
 (defun update-matrix (matrix fn rows cols)
-  "Calculate cells of matrix up to rows and cols."
+  "Create a matrix array based on fn(row, col)"
   (dotimes (col cols matrix)
     (dotimes (row rows)
       (setf (aref matrix row col)
@@ -175,6 +175,7 @@ Signal error if A and B are not matrices, or if the number of rows in A does not
 			   batch-size)))
 
 (defun trace-times-transposed (A B)
+  "Return trace of matrix product, =Tr Aᵀ⋅B="
   (let* ((batch-size (array-dimension A 0))
 	 (rows (array-dimension A 1))
 	 (cols (array-dimension B 1)))
@@ -185,13 +186,19 @@ Signal error if A and B are not matrices, or if the number of rows in A does not
 			     batch-size)))
 
 (defun linear-update (a x b y)
+  "Modify X to hold =aX+bY= and return it."
   (assert (equalp (array-dimensions x) (array-dimensions y)))
   (linear-combination-into x a x b y (array-dimension x 0)
 			   (array-dimension x 1)))
 
 (defun linear-combination (a x b y)
+  "Return =aX+bY=. Nondestructive."
   (assert (equalp (array-dimensions x) (array-dimensions y)))
   (linear-combination-into
    (make-array (array-dimensions x)
 	       :element-type (array-element-type x))
    a x b y (array-dimension x 0) (array-dimension x 1)))
+
+(defun M- (a b)
+  "Return matrix difference, =A-B="
+  (linear-combination 1s0 a -1s0 b))

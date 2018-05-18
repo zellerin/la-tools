@@ -4,7 +4,7 @@
 	   "LINEAR-COMBINATION" "LINEAR-COMBINATION-INTO" "LINEAR-UPDATE"
 	   "TIMES-TRANSPOSED" "TIMES-TRANSPOSED-INTO"
 	   "TRACE-TIMES-TRANSPOSED"
-	   "TIMES-REV-TRANSPOSED"))
+	   "TIMES-REV-TRANSPOSED" "M-"))
 
 (defpackage #:regression
    (:use #:cl #:rt #:linear-algebra)

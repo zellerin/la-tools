@@ -5,9 +5,6 @@
 ;;; model), not in the software sense (regression tests)
 (in-package regression)
 
-(defun M- (a b)
-  (linear-combination 1s0 a -1s0 b))
-
 (declaim (inline logistic-estimate linear-estimate
 		 logistic-grad-A linear-grad-A))
 
@@ -16,13 +13,15 @@
   (apply-fn #'float-sigma (times X A)))
 
 (defun linear-estimate (X A)
-  "Logistic regression estimate given coefficients A and independent variables X."
+  "Linear regression estimate given coefficients A and independent variables X."
   (times X A))
 
 (defun logistic-grad-A (X err Y)
+  "Gradient of error of logistic cost function."
   (times-transposed X (apply-fn2 #'float-dsigma err Y)))
 
 (defun linear-grad-A (X err Y)
+  "Gradient of error of linear cost function."
   (declare (ignore Y))
   (times-transposed X err))
 
@@ -36,7 +35,7 @@
      (eval-when (:compile-toplevel)
        (pushnew ',name *pairs*))
      (defun ,name ,pars
-       ,docstring-fmt
+       ,(format nil docstring-fmt "")
        (declare (ignorable ,@(mapcar
 			      ;; cannot use ignore, as parameter may
 			      ;; be used in default calculation for
@@ -57,8 +56,7 @@
 		    ,@body))))))
 
 (define-pair regression-iteration (Y A X sigma rho)
-  "Update matrix with ~(~A~) regression coeficients to
-better match observed data.
+  "Update matrix with ~(~A~) regression coeficients to better match observed data.
 
 Takes as parameter
 - the model data original regression coefficients matrix A, matrix of
@@ -78,10 +76,18 @@ the regression coefficients."
 
 (define-pair regression-iterations (Y A X sigma alpha count
 				      &optional out (sampling 20)
-				      &aux (rho (+ 1s0 (* alpha sigma))))
-    "Run COUNT iterations, optionally logging error(s)."
+				      &aux
+				      (m (array-dimension X 0))
+				      (rho (+ 1s0 (* m alpha sigma))))
+    "Run count ~(~A~) iterations, optionally logging cost function.
+
+The cost function is 1/m Σ ‖y-yʹ‖₂ + ½αΣ‖A‖₂, where =m= is the batch
+size, =α= is a regularization parameter, ‖u‖₂is sum of squares of the
+elements of matrix u (i.e., =Tr uᵀu=), and =σ= determines speed of
+gradient descent (higher is better until it starts to oscilate)."
   (dotimes (i count)
-    (let ((err (regression-iteration y a x sigma rho)))
+    (let ((err (regression-iteration y a x (/ sigma m) rho)))
+      (setf sigma (* sigma 1.0001))
       (when (and out (zerop (mod i sampling)))
 	(let ((A-err (* alpha 2s0 (trace-times-transposed A A))))
 	  (format out "~a ~a ~a~%"
@@ -116,16 +122,19 @@ Returns X, Y and initial A as values."
 	     (let ((A (copy-array fixed-A)))
 	       (regression-iterations y a x sigma alpha count out sampling)))))
 
-(define-pair check-regression (count &optional
+(define-pair check-regression (count &key
+				     (samples 10)
+				     (indeps 10)
+				     (deps 1)
 				     (sampling 20)
-				     (sigma -6s-3))
+				     (sigma -6s-3)
+				     (alpha 0s0)
+				     (out *standard-output*))
   "Test COUNT rounds of regression on random matrixes"
-  (with-test-case (100 120 1)
-    (try-sigmas Y X sigma)
-    (dotimes (i count)
-      (let ((F (regression-iterations Y A X
-				      sigma 0s0
-				      out sampling)))))))
+  (with-test-case (samples indeps deps)
+    (regression-iterations Y A X
+			   sigma alpha
+			   count out sampling)))
 
 (define-pair get-coefficients (y raw-x &key
 				 (A (make-random-array (array-dimension raw-x 1) 1 2s-2))
