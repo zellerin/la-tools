@@ -89,12 +89,17 @@ minimise cost function for linear regression.
 #+TBLFM: $2='(sly-eval '(cl:let ((line (cl:documentation (cl:intern (cl:string-upcase $1) 'REGRESSION) 'cl:function))) (cl:subseq line 0 (cl:position ?\^J line :key 'cl:char-code))))
 
 Key function is =linear-regression-iterations= that has docstring
-#+BEGIN_SRC lisp :package regression 
+#+BEGIN_SRC lisp :package regression :exports results
 (documentation #'linear-regression-iterations t)
 #+END_SRC
 
 #+RESULTS:
-: NIL
+: Run count linear iterations, optionally logging cost function.
+: 
+: The cost function is 1/m Σ ‖y-yʹ‖₂ + ½αΣ‖A‖₂, where =m= is the batch
+: size, =α= is a regularization parameter, ‖u‖₂is sum of squares of the
+: elements of matrix u (i.e., =Tr uᵀu=), and =σ= determines speed of
+: gradient descent (higher is better until it starts to oscilate).
 
 ** Example 1
 The goal is a linear regression of data in file =ex1data1.txt= that is
@@ -114,6 +119,8 @@ The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var q=ex1-lr[0,0] :var k=ex1-lr[1,0]
 #+BEGIN_SRC gnuplot :exports code :file ex1data1.svg :exports both
 set title "Training data with a linear fit"
+set yrange [*:*]
+set xrange [*:*]
 set xlabel "Population (in 10 000)"
 set ylabel "Profit (in 10 000 USD)"
 set key box linestyle -1 left top
@@ -158,11 +165,11 @@ splot file using "%lf,%lf,%lf\n" title "Training data",\
 #+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
   (with-open-file (out "lrs.txt" :direction :output :if-exists :supersede)
     (multiple-value-call #'logistic-get-coefficients (read-comma-file2 file)
-      :sigma -1s0 :alpha 0.0001 :out out))
+      :sigma -1s0 :alpha 1e-7 :out out))
 #+END_SRC
 
 #+RESULTS: ex2data1
-| 62.189804 | -0.52684647 | 1.3495387 | -6334.2456 |
+| 7.1712723 | -0.06393955 | 0.32472643 | -1306.6571 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
@@ -177,7 +184,7 @@ set yrange [*:*]
 set xrange [*:*]
 plot file using 1:($3 == 1 ? $2 : 1/0) "%lf,%lf,%lf\n" title "Admitted",\
    file using 1:($3 == 0 ? $2 : 1/0) "%lf,%lf,%lf\n" title "Not admitted", \
-   (-q-k1*x-k3/x)/k2
+   (-q-k1*x-k3/x)/k2 title "Boundary"
 #+END_SRC
 
 #+RESULTS:
@@ -277,8 +284,13 @@ plot for [IDX=0:4] file i IDX u 3 w lines title columnheader(1)
 [[file:err-both.svg]]
 
 
+* Emacs/Org notes
+Some employed in this file
+- Use org-table functions to get [[id:22295238-7f56-45a2-bd78-d918c008b58b][docstring of the Lisp functions]] and fill in [[id:db78f098-a6c4-457e-84d6-6d6ec6601026][multiplication speed]]
+- Gnuplot technique to [[id:56ce1f87-af8b-43f6-bad0-bf7c4d74a9f3][plot several data parts]] of file is new to me
+
+
 * BUGS/next steps
-- [X] (check-logistic): parameter args added but not used
 - [ ] Linear combination being destructive is counterintuitive. Rename
   to update and define true non-destructive combination
 - [X] Normalization of X is missing
