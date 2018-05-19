@@ -69,7 +69,7 @@ estimated and provided Y), error vector itself and updated matrix with
 the regression coefficients."
   (let* ((estimated-Y (estimate X A))
 	 (err (M- estimated-Y y))
-	 (a-diff (grad-A X (copy-array err) estimated-Y)))
+	 (a-diff (grad-A X err estimated-Y)))
     (values
 	    (trace-times-transposed err err)
 	    err (linear-update rho A sigma a-diff))))
@@ -78,13 +78,14 @@ the regression coefficients."
 				      &optional out (sampling 20)
 				      &aux
 				      (m (array-dimension X 0))
-				      (rho (+ 1s0 (* m alpha sigma))))
+				      (rho (+ 1s0 (* alpha sigma))))
     "Run count ~(~A~) iterations, optionally logging cost function.
 
-The cost function is 1/m Σ ‖y-yʹ‖₂ + ½αΣ‖A‖₂, where =m= is the batch
-size, =α= is a regularization parameter, ‖u‖₂is sum of squares of the
+The cost function is 1/m(Σ ‖y-yʹ‖₂ + ½αΣ‖A‖₂, where =m= is the batch
+size, =α= is a regularization parameter, ‖u‖₂ is sum of squares of the
 elements of matrix u (i.e., =Tr uᵀu=), and =σ= determines speed of
-gradient descent (higher is better until it starts to oscilate)."
+gradient descent (higher is better until it causes cost fucntion to
+oscilate)."
   (dotimes (i count)
     (let ((err (regression-iteration y a x (/ sigma m) rho)))
       (setf sigma (* sigma 1.0001))

@@ -33,18 +33,20 @@ f(sigma(x))' = f'(sigma) . sigma . (1-sigma)."
       (dotimes (j cols)
 	(setf (aref A i j) (funcall fn (aref A i j)))))))
 
-(defun apply-fn2 (fn A B)
-  "Destructively apply function fn to all respective cells of a 2D
+(defun apply-fn2 (fn A B )
+  "Return result of application of function fn to all respective cells of a 2D
 matrix A and B (same dimensions assumed) and store result to cells in A.."
-  (let ((rows (array-dimension A 0))
-	(cols (array-dimension A 1)))
+  (let* ((rows (array-dimension A 0))
+	 (cols (array-dimension A 1))
+	 (res (make-array (list rows cols)
+			  :element-type (array-element-type A))))
   (declare
-   ((simple-array single-float) A B)
+   ((simple-array single-float) A B res)
    (optimize speed)
    (compiled-function fn))
     (dotimes (i rows A)
       (dotimes (j cols)
-	(setf (aref A i j) (funcall fn (aref A i j) (aref B i j)))))))
+	(setf (aref res i j) (funcall fn (aref A i j) (aref B i j)))))))
 
 
 (defun copy-array (a)
