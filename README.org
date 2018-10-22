@@ -277,8 +277,9 @@ Some employed in this file
 
 
 * Emacs/Org notes
-Some employed in this file
-- Use org-table functions to get [[id:22295238-7f56-45a2-bd78-d918c008b58b][docstring of the Lisp functions]] and fill in [[id:db78f098-a6c4-457e-84d6-6d6ec6601026][multiplication speed]]
+Some techniques employed in this file:
+- Use org-table functions to get [[id:22295238-7f56-45a2-bd78-d918c008b58b][docstring of the Lisp functions]] and
+  fill in [[id:db78f098-a6c4-457e-84d6-6d6ec6601026][multiplication speed]]
 - Gnuplot technique to [[id:56ce1f87-af8b-43f6-bad0-bf7c4d74a9f3][plot several data parts]] of file is new to me
 
 #+BEGIN_SRC gnuplot :file f.png :var   file="~/src/machine-learning-course/ex2/ex2data1.txt"
