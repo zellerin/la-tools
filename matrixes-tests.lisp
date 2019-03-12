@@ -1,3 +1,4 @@
+(in-package linear-algebra)
 (rt:deftest s*m
     (let ((B #A((2 3) single-float
 		(1.0 0.4 0.2)
@@ -31,7 +32,7 @@
 	  (* B (transpose B))))
   #.(make-array '(5 5) :element-type 'single-float :initial-element 63.0))
 
-(rt:deftest mult2
+#+nil(rt:deftest mult2
     (let ((B #A ((3 2) single-float
 		 (1.0 0.0)
 		 (0.0 0.2)
@@ -68,6 +69,16 @@
 		    (7 8 9))))
 	:field fixnum)
   #2A ((5 7 9) (11 13 15) (17 19 21)))
+
+(rt:deftest map
+    (let ((a (make-array '(3 3) :initial-element 1))
+	  (b #2a((1 2 3)
+		 (4 5 6)
+		 (7 8 9))))
+      (with-matrixes
+	  (map + A B)
+	:field fixnum))
+  #2A ((2 3 4) (5 6 7) (8 9 10)))
 
 (rt:deftest (linear-combination-mismatch mat)
   (handler-case

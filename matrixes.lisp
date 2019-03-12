@@ -36,9 +36,9 @@ Use optional declarations to indicate scalars or matrix sizes."
   (let ((*matrix-zero* (coerce 0 field))
 	(*matrix-field* field)
 	(*default-declarations* declarations))
-    (multiple-value-bind (res-type sizes res-expr assertions)
+    (multiple-value-bind (res-type sizes res-expr assertions bindings)
 	(with-matrixes* declarations expr env)
-      `(progn
+      `(let ,bindings
 	 ,@assertions
 	 ,(ecase res-type
 	    (copy res-expr)
@@ -61,12 +61,12 @@ Use optional declarations to indicate scalars or matrix sizes."
 
 (defun handle-summation (op declarations expr env)
   (destructuring-bind (a-term . more-terms) expr
-    (multiple-value-bind (a-res-type a-sizes a-res-expr a-assertions)
+    (multiple-value-bind (a-res-type a-sizes a-res-expr a-assertions a-bindings)
 	(with-matrixes* declarations a-term env)
       (unless more-terms
 	(return-from handle-summation
-	  (values a-res-type a-sizes a-res-expr a-assertions)))
-      (multiple-value-bind (b-res-type b-sizes b-res-expr b-assertions)
+	  (values a-res-type a-sizes a-res-expr a-assertions a-bindings)))
+      (multiple-value-bind (b-res-type b-sizes b-res-expr b-assertions b-bindings)
 	  ; + even when op is - (!)
 	  (with-matrixes* declarations `(+ ,@more-terms) env)
 	(cond
@@ -88,15 +88,16 @@ Use optional declarations to indicate scalars or matrix sizes."
 				     ()
 				     'matrix-error
 				     :op "adding"
-				     :params (cons ',a-term ',more-terms)))))))))))
+				     :params (cons ',a-term ',more-terms))))
+		   (append a-bindings b-bindings))))))))
 
 (defun handle-multiply (declarations expr env)
-  (multiple-value-bind (a-res-type a-sizes a-res-expr a-assertions)
+  (multiple-value-bind (a-res-type a-sizes a-res-expr a-assertions a-bindings)
       (with-matrixes* declarations (cadr expr) env)
     (unless (cddr expr)
       (return-from handle-multiply
-	   (values a-res-type a-sizes a-res-expr a-assertions)))
-       (multiple-value-bind (b-res-type b-sizes b-res-expr b-assertions)
+	   (values a-res-type a-sizes a-res-expr a-assertions a-bindings)))
+       (multiple-value-bind (b-res-type b-sizes b-res-expr b-assertions b-bindings)
 	   (with-matrixes* declarations `(* ,@(cddr expr)) env)
 	 (cond
 	   ((and (eq 'scalar a-res-type)
@@ -108,7 +109,8 @@ Use optional declarations to indicate scalars or matrix sizes."
 		    (lambda (i j)
 		      (if (eq b-res-type 'copy) `(* ,a-res-expr (aref ,b-res-expr ,i ,j))
 			  `(* ,a-res-expr ,(funcall  b-res-expr i j))))
-		    (append a-assertions b-assertions)))
+		    (append a-assertions b-assertions)
+		    (append a-bindings b-bindings)))
 	   (t
 	    (values 'matrix `(,(car a-sizes) ,(cadr b-sizes))
 		    (lambda (i j)
@@ -123,10 +125,11 @@ Use optional declarations to indicate scalars or matrix sizes."
 			    `((assert (= ,(cadr a-sizes) ,(car b-sizes))
 				      ()
 				      'matrix-error :op "multiplication"
-				      (list ',(cadr expr) ',(cddr expr)))))))))))
+				      (list ',(cadr expr) ',(cddr expr)))))
+		    (append a-bindings b-bindings)))))))
 
 (defun handle-trace (declarations expr env)
-  (multiple-value-bind (res-type sizes res-expr assertions)
+  (multiple-value-bind (res-type sizes res-expr assertions bindings)
       (with-matrixes* declarations (cadr expr) env)
     (assert (null (cddr expr)))
     (cond
@@ -143,21 +146,25 @@ Use optional declarations to indicate scalars or matrix sizes."
 	       (append assertions
 		       `((assert (= ,(cadr sizes) ,(car sizes))
 				 ()
-				 "Trace on non-square: ~s" ',sizes ))))))))
+				 "Trace on non-square: ~s" ',sizes )))
+	       bindings)))))
 
 (defun handle-map (declarations expr env)
-  (multiple-value-bind (res-type sizes res-expr assertions)
+  (multiple-value-bind (res-type sizes res-expr assertions bindings)
       (with-matrixes* declarations (cadr expr) env)
     (cond
       ((eq 'scalar res-type)
        (error 'matrix-error :op "map" :params expr))
       (t
        (loop for more-args in (cddr expr)
-	     for (new-res-type new-sizes new-res-expr new-assertions)
+	     for (new-res-type new-sizes new-res-expr new-assertions new-bindings)
 	       = (multiple-value-call 'list (with-matrixes* declarations more-args env))
-	     append new-assertions into all-assertions
+	     append new-bindings into all-bindings
+	     append (append new-assertions
+			    `((assert (compatible-size ,(car new-sizes) ,(car sizes)))
+			      (assert (compatible-size ,(cadr new-sizes) ,(cadr sizes)))))
+	     into all-assertions
 	     do
-;		(assert (equalp sizes new-sizes))
 		(assert (not (equalp 'scalar new-res-type)))
 	     collect new-res-expr into exprs
 	     collect new-res-type into res-types
@@ -169,7 +176,8 @@ Use optional declarations to indicate scalars or matrix sizes."
 					 ,@(mapcar (lambda (type expr)
 						     (matrix-element-of type expr i j))
 						   res-types exprs)))
-				     (append assertions new-assertions))))))))
+				     (append assertions all-assertions)
+				     (append bindings all-bindings))))))))
 
 (defun handle-diag (declarations expr env)
   (declare (ignore declarations env))
@@ -178,17 +186,17 @@ Use optional declarations to indicate scalars or matrix sizes."
 	    `(if (= ,i ,j) (elt ,(apply 'vector  expr) ,i) ,(coerce 0 *matrix-field*)))))
 
 (defun handle-transpose (declarations expr env)
-  (multiple-value-bind (res-type sizes res-expr assertions)
+  (multiple-value-bind (res-type sizes res-expr assertions bindings)
       (with-matrixes* declarations (cadr expr) env)
     (assert (null (cddr expr)))
     (cond
       ((eq 'scalar res-type)
-       (values 'scalar nil res-expr assertions))
+       (values 'scalar nil res-expr assertions bindings))
       (t
        (values 'matrix (reverse sizes)
 	       (lambda (i j)
 		 (matrix-element-of res-type res-expr j i))
-	       assertions)))))
+	       assertions bindings)))))
 
 (defun with-matrixes* (declarations expr env)
   (when (atom expr)
@@ -198,11 +206,15 @@ Use optional declarations to indicate scalars or matrix sizes."
 	((constantp expr env) (values 'scalar nil expr))
 	((and (symbolp expr) (member expr (assoc 'scalar declarations)))
 	 (values 'scalar nil expr))
-	(t (values 'copy
-		   (or (cdr (assoc expr declarations))
-		       `((array-dimension ,expr 0)
-			 (array-dimension ,expr 1)))
-		   expr)))))
+	(t (let ((rows (gensym (format nil "ROWS ~(~A~)" expr)))
+		 (cols (gensym (format nil "COLS ~(~A~)" expr))))
+	     (values 'copy
+		     (or (cdr (assoc expr declarations))
+			 `(,rows ,cols))
+		     expr
+		     nil
+		     `((,rows (array-dimension ,expr 0))
+		       (,cols  (array-dimension ,expr 1)))))))))
   (ecase (car expr)
     (* (handle-multiply declarations expr env))
     ((+ -) (handle-summation (car expr) declarations  (cdr expr) env))
