@@ -1,4 +1,7 @@
+(in-package linear-algebra)
 (defparameter *matrix-field* 'single-float)
+(defvar *matrix-optimize* (or nil '(speed (safety 0) (debug 0))))
+
 (defvar *default-declarations*
   '((scalar alpha beta))
   "Default list of declarations for with-matrixes.
@@ -13,9 +16,19 @@ Otherwise it denotes name of a variable and follows its size.")
       (eq :any s2)
       (= s1 s2)))
 
+(define-condition matrix-error (simple-error)
+  ((op     :accessor get-op     :initarg :op)
+   (params :accessor get-params :initarg :params)
+   (sizes  :accessor get-sizes  :initarg :sizes))
+  (:report
+   (lambda (o stream)
+     (format stream "Matrix error during ~A ~A" (get-op o) (get-params o)))))
+
 (defmacro with-matrixes (expr
 			 &key (declarations *default-declarations*)
-			 (field *matrix-field*)
+			   (field *matrix-field*)
+			   (optimize *matrix-optimize*)
+			   target
 			 &environment env)
   "Run expr in linear algebra context.
 
@@ -33,21 +46,20 @@ Use optional declarations to indicate scalars or matrix sizes."
 	    (matrix
 	     (let ((i (gensym "I"))
 		   (j (gensym "J")))
-	       `(let ((res (make-array (list ,@sizes) :element-type ',*matrix-field*
-						      :initial-element ,*matrix-zero*)))
-		  (declare (optimize speed (debug 0) (safety 0))
+	       `(let ((res ,(or target
+			       `(make-array (list ,@sizes) :element-type ',*matrix-field*
+							  :initial-element ,*matrix-zero*))))
+		  (declare (optimize ,@optimize)
 			   ,@(mapcar (lambda (d)
 				       `((simple-array ,*matrix-field* (,(cadr d) ,(caddr d)))
 					 ,(car d)))
 				     (remove 'scalar declarations :key 'car)))
 		  (dotimes (,i ,(car sizes) res)
-		    (declare (fixnum ,i))
 		    (dotimes (,j ,(cadr sizes))
-		      (declare (fixnum ,j))
 		      (setf (aref res ,i ,j)
 			    ,(funcall res-expr i j))))))))))))
 
-(defun handle-summation (declarations expr env)
+(defun handle-summation (op declarations expr env)
   (destructuring-bind (a-term . more-terms) expr
     (multiple-value-bind (a-res-type a-sizes a-res-expr a-assertions)
 	(with-matrixes* declarations a-term env)
@@ -55,25 +67,28 @@ Use optional declarations to indicate scalars or matrix sizes."
 	(return-from handle-summation
 	  (values a-res-type a-sizes a-res-expr a-assertions)))
       (multiple-value-bind (b-res-type b-sizes b-res-expr b-assertions)
+	  ; + even when op is - (!)
 	  (with-matrixes* declarations `(+ ,@more-terms) env)
 	(cond
 	  ((and (eq 'scalar a-res-type)
 		(eq 'scalar b-res-type))
-	   (values 'scalar nil `(+ ,a-res-expr ,b-res-expr)
+	   (values 'scalar nil `(,op ,a-res-expr ,b-res-expr)
 		   (append a-assertions b-assertions)))
 	  ((or (eq 'scalar a-res-type) (eq 'scalar b-res-type))
 	   (error "Cannot sum scalar and matrix: ~s ~s" a-term more-terms))
 	  (t
 	   (values 'matrix `(,(car a-sizes) ,(cadr a-sizes))
 		   (lambda (i j)
-		     `(+ ,(matrix-element-of a-res-type a-res-expr i j)
+		     `(,op ,(matrix-element-of a-res-type a-res-expr i j)
 			 ,(matrix-element-of b-res-type b-res-expr i j)))
 		   (append a-assertions b-assertions
 			   `((assert (and
 				      (compatible-size ,(car a-sizes) ,(car b-sizes))
 				      (compatible-size ,(cadr a-sizes) ,(cadr b-sizes)))
 				     ()
-				     "Summation mismatch: ~s ~s" ',a-term ',more-terms))))))))))
+				     'matrix-error
+				     :op "adding"
+				     :params (cons ',a-term ',more-terms)))))))))))
 
 (defun handle-multiply (declarations expr env)
   (multiple-value-bind (a-res-type a-sizes a-res-expr a-assertions)
@@ -107,7 +122,8 @@ Use optional declarations to indicate scalars or matrix sizes."
 		    (append a-assertions b-assertions
 			    `((assert (= ,(cadr a-sizes) ,(car b-sizes))
 				      ()
-				      "Matrix multiply mismatch: ~sx~s" ',a-sizes ',b-sizes)))))))))
+				      'matrix-error :op "multiplication"
+				      (list ',(cadr expr) ',(cddr expr)))))))))))
 
 (defun handle-trace (declarations expr env)
   (multiple-value-bind (res-type sizes res-expr assertions)
@@ -129,6 +145,32 @@ Use optional declarations to indicate scalars or matrix sizes."
 				 ()
 				 "Trace on non-square: ~s" ',sizes ))))))))
 
+(defun handle-map (declarations expr env)
+  (multiple-value-bind (res-type sizes res-expr assertions)
+      (with-matrixes* declarations (cadr expr) env)
+    (cond
+      ((eq 'scalar res-type)
+       (error 'matrix-error :op "map" :params expr))
+      (t
+       (loop for more-args in (cddr expr)
+	     for (new-res-type new-sizes new-res-expr new-assertions)
+	       = (multiple-value-call 'list (with-matrixes* declarations more-args env))
+	     append new-assertions into all-assertions
+	     do
+;		(assert (equalp sizes new-sizes))
+		(assert (not (equalp 'scalar new-res-type)))
+	     collect new-res-expr into exprs
+	     collect new-res-type into res-types
+	     finally (return (values 'matrix
+				     sizes
+				     (lambda (i j)
+				       `(,(car expr)
+					 ,(matrix-element-of res-type res-expr i j)
+					 ,@(mapcar (lambda (type expr)
+						     (matrix-element-of type expr i j))
+						   res-types exprs)))
+				     (append assertions new-assertions))))))))
+
 (defun handle-diag (declarations expr env)
   (declare (ignore declarations env))
   (values 'matrix (list (length expr) (length expr))
@@ -148,42 +190,6 @@ Use optional declarations to indicate scalars or matrix sizes."
 		 (matrix-element-of res-type res-expr j i))
 	       assertions)))))
 
-(defun handle-setq (declarations expr env)
-  (destructuring-bind (place value) expr
-      (multiple-value-bind (res-type res-size res-expr assertions)
-	  (with-matrixes* declarations place env)
-	(declare (ignore res-expr))
-	(multiple-value-bind (src-type src-size src-expr src-assertions)
-	    (with-matrixes* declarations value env)
-	  (assert (symbolp place))
-	  (cond
-	    ((eq 'scalar res-type)
-	     (assert (eq 'scalar src-type) () "Assigning non-scalar to scalar")
-	     (values 'scalar nil `(setq ,(cadr expr) ,src-expr)
-		     (append  src-assertions assertions)))
-	    (t
-	     (assert (not (eq 'scalar src-type)) ()
-		     "Assigning a scalar ~s to a matrix ~s")
-	     ;; returns 0
-	     (values 'scalar res-size
-		     (let ((i (gensym "I"))
-			   (j (gensym "J")))
-		       `(progn
-			  (dotimes (,i ,(car res-size) res)
-			    (declare (fixnum ,i))
-			    (dotimes (,j ,(cadr res-size))
-			      (declare (fixnum ,j))
-			      (setf (aref ,place ,i ,j)
-				    ,(matrix-element-of src-type src-expr i j))))
-			  ,place)
-		       (append assertions src-assertions
-			       `((assert (and
-					  (compatible-size ,(car src-size) ,(car res-size))
-					  (compatible-size ,(cadr src-size) ,(cadr res-size)))
-					 ()
-					 "Cannot assign ~S to ~S"
-					 ',value ',place)))))))))))
-
 (defun with-matrixes* (declarations expr env)
   (when (atom expr)
     (return-from with-matrixes*
@@ -199,10 +205,10 @@ Use optional declarations to indicate scalars or matrix sizes."
 		   expr)))))
   (ecase (car expr)
     (* (handle-multiply declarations expr env))
-    (+ (handle-summation declarations (cdr expr) env))
+    ((+ -) (handle-summation (car expr) declarations  (cdr expr) env))
     (trace (handle-trace declarations expr env))
     (transpose (handle-transpose declarations expr env))
-    (setq (handle-setq declarations (cdr expr) env))
+    (map (handle-map declarations (cdr expr) env))
     (diag (handle-diag declarations (cdr expr) env))))
 
 (defun matrix-element-of (type expr i j)

@@ -1,10 +1,9 @@
 (defpackage "LINEAR-ALGEBRA"
   (:use #:cl #:rt)
-  (:export "TIMES" "TIMES-INTO"
-	   "LINEAR-COMBINATION" "LINEAR-COMBINATION-INTO" "LINEAR-UPDATE"
-	   "TIMES-TRANSPOSED" "TIMES-TRANSPOSED-INTO"
-	   "TRACE-TIMES-TRANSPOSED"
-	   "TIMES-REV-TRANSPOSED" "M-"))
+  (:export "WITH-MATRIXES" "TRANSPOSE"
+	   "TRACE" "SCALAR"
+
+	   "*MATRIX-FIELD*" "MATRIX-OPTIMIZE"))
 
 (defpackage #:regression
    (:use #:cl #:rt #:linear-algebra)

@@ -1,5 +1,7 @@
 (in-package regression)
 
+(declaim (inline float-sigma float-dsigma))
+
 (defun float-sigma (x)
   "Calculate logistic function x -> σ(x)
 
@@ -9,8 +11,6 @@
 
 for a single-float parameter X. Care is taken not to underflow for
 large negative values of x."
-  (declare (single-float x)
-	   (optimize speed))
   (if (> x #.(- 1s0 (log most-positive-single-float)))
       (/ 1s0 (+ 1s0 (exp (- x))))
       0s0))
@@ -20,6 +20,14 @@ large negative values of x."
 
 f(sigma(x))' = f'(sigma) . sigma . (1-sigma)."
   (* sigma (- 1s0 sigma) diff))
+
+(defun trace-times-transposed (A B)
+  "Return trace of matrix product, =Tr Aᵀ⋅B="
+  (with-matrixes (trace (* (transpose A) B))))
+
+(defun times-transposed (A B)
+  "Return trace of matrix product, =Tr Aᵀ⋅B="
+  (with-matrixes (* (transpose A) B)))
 
 (defun apply-fn (fn A)
   "Destructively apply function fn to all cells of a 2D matrix A."
@@ -33,7 +41,7 @@ f(sigma(x))' = f'(sigma) . sigma . (1-sigma)."
       (dotimes (j cols)
 	(setf (aref A i j) (funcall fn (aref A i j)))))))
 
-(defun apply-fn2 (fn A B )
+#+nil(defun apply-fn2 (fn A B )
   "Return result of application of function fn to all respective cells of a 2D
 matrix A and B (same dimensions assumed) and store result to cells in A.."
   (let* ((rows (array-dimension A 0))
@@ -94,4 +102,4 @@ deviation 1."
 	     (assert (> sumsq (* avg sum)) () "Strange avg (~s = ~s / ~s) and sumsq (~s)" avg sum len sumsq)
 	     (setf (aref A 0 i) (* -1s0 (/ avg sigma))
 		   (aref A i i) (/ 1s0 sigma))
-	  finally (return (values (times X a) A)))))
+	  finally (return (values (with-matrixes (* X a)) A)))))

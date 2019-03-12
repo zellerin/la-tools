@@ -76,4 +76,4 @@
 	     (* 1 #2a ((1 2))))
 	  :field fixnum)
     (t (e) (type-of e)))
-  simple-error)
+  matrix-error)

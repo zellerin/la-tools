@@ -10,10 +10,10 @@
   :components ((:static-file "README.org" :pathname "README.org")
 	       (:static-file "file.svg" :pathname "file.svg")
 	       (:file "package")
+	       (:file "matrixes")
 	       (:file "utils")
-	       (:file "multiply")
 	       (:file "multiply-test")
-	       (:file "regression")
+	       (:file "linear")
 	       (:file "regression-test")
 	       )
   ;; :long-description ""
