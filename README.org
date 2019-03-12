@@ -12,23 +12,7 @@ vector) multiplication. I met quite a few LA libraries, some native,
 some using FFI, and most of them is a bit too complicated. Also, I
 wanted to get a feeling on speed of simple code.
 
-So I rewrote a simple implementation of some LA operations. The only
-non-obvious part is that there are sometimes several functions to calculate
-value of cell in a matrix, each for different type of source (e.g.,
-single float and generic).
-
-Implemented high-level functions are:
-| Function               | Docstring                                   | Used to                    |
-|------------------------+---------------------------------------------+----------------------------|
-| times                  | Return matrix product =A⋅B=. Nondestructive.  | Calculate LR estimate      |
-| times-transposed       | Return matrix product =Aᵀ⋅B=. Nondestructive. | Calculate LR gradient      |
-| times-rev-transposed   | Return matrix product =A⋅Bᵀ=. Nondestructive. | Backpropagate neural net   |
-| trace-times-transposed | Return trace of matrix product, =Tr Aᵀ⋅B=     | Calculate LR cost function |
-|------------------------+---------------------------------------------+----------------------------|
-| linear-update          | Modify X to hold =aX+bY= and return it.       |                            |
-| linear-combination     | Return =aX+bY=. Nondestructive.               |                            |
-| M-                     | Return matrix difference, =A-B=               | Error calculation, ...     |
-#+TBLFM: $2='(sly-eval '(cl:let ((line (cl:documentation (cl:intern (cl:string-upcase $1) 'LINEAR-ALGEBRA) 'cl:function))) (cl:subseq line 0 (cl:position ?\^J line :key 'cl:char-code))))
+So here is a simple implementation of some LA operations. The macro with-matrixes takes an matrix algebra expression such as ~(* A X)~ and generates code to prepare the matrix.
 
 ** Speed test
    :PROPERTIES:
@@ -40,35 +24,37 @@ This is speed test with current machine (HP notebook), sbcl,
 
 #+NAME: speed-test
 #+header: :var rows=500 :var across=500
-#+BEGIN_SRC lisp :package linear-algebra :var type="SINGLE-FLOAT" :var cols=500
-  (let ((a (make-array `(,rows ,across) :element-type type
+#+BEGIN_SRC lisp :package linear-algebra :var cols=500 type='single-float
+  (let ((a (make-array `(,rows ,across) :element-type 'single-float
 					:initial-element 0s0))
-	(b (make-array `(,across cols) :element-type type
+	(b (make-array `(,across cols) :element-type 'single-float
 				       :initial-element 0s0)))
-  
-     (time-in-ms-as-real (times a b)))
+
+     (time-in-ms-as-real (regression::with-matrixes (* a b) :declarations nil)))
 #+END_SRC
+
+#+RESULTS: speed-test
+: 218.0
 
 The speeds for individual table types and sizes are like this on my machine:
 #+NOTE: Use C-c* to recalculate
 #+TBLNAME:
-| rows | across | cols | element-type | time (ms) | per-ms |
-|------+--------+------+--------------+-----------+--------|
-|  500 |    500 |  500 | single-float |     391.0 | 319693 |
-|------+--------+------+--------------+-----------+--------|
-|  100 |    100 |  100 | single-float |       5.0 | 200000 |
-|  200 |    200 |  200 | single-float |      30.0 | 266667 |
-|  400 |    400 |   10 | single-float |       7.0 | 228571 |
-|  400 |    400 |   20 | single-float |      14.0 | 228571 |
-|  400 |    400 |   40 | single-float |      25.0 | 256000 |
-|  400 |    400 |  100 | single-float |      58.0 | 275862 |
-|  400 |    400 |  200 | single-float |     117.0 | 273504 |
-|  400 |    400 |  400 | single-float |     236.0 | 271186 |
-|  400 |    400 | 1000 | single-float |     600.0 | 266667 |
-|  400 |    400 | 2000 | single-float |    1193.0 | 268231 |
-|------+--------+------+--------------+-----------+--------|
-|  400 |    400 |   50 | t            |     222.0 |  36036 |
-#+TBLFM: $5='(org-sbe speed-test (type '$4) (cols $3) (rows $1) (across $2))::$6=round($1*$2*$3/$5)
+| rows | across | cols | time (ms) |  per-ms |
+|------+--------+------+-----------+---------|
+|  500 |    500 |  500 |     366.0 |  341530 |
+|------+--------+------+-----------+---------|
+|  100 |    100 |  100 |       1.0 | 1000000 |
+|  200 |    200 |  200 |      15.0 |  533333 |
+|  400 |    400 |   10 |       3.0 |  533333 |
+|  400 |    400 |   20 |       5.0 |  640000 |
+|  400 |    400 |   40 |       9.0 |  711111 |
+|  400 |    400 |  100 |      25.0 |  640000 |
+|  400 |    400 |  200 |      52.0 |  615385 |
+|  400 |    400 |  400 |     102.0 |  627451 |
+|  400 |    400 | 1000 |     264.0 |  606061 |
+|  400 |    400 | 2000 |     583.0 |  548885 |
+|------+--------+------+-----------+---------|
+#+TBLFM: $4='(org-sbe speed-test (cols $3) (rows $1) (across $2))::$5=round($1*$2*$3/$4)
 
 It appears to provide relatively stable number of (rows*cols*across)
 field in the tested ranges for floats.
@@ -95,7 +81,7 @@ Key function is =linear-regression-iterations= that has docstring
 
 #+RESULTS:
 : Run count linear iterations, optionally logging cost function.
-: 
+:
 : The cost function is 1/m Σ ‖y-yʹ‖₂ + ½αΣ‖A‖₂, where =m= is the batch
 : size, =α= is a regularization parameter, ‖u‖₂is sum of squares of the
 : elements of matrix u (i.e., =Tr uᵀu=), and =σ= determines speed of
@@ -103,19 +89,19 @@ Key function is =linear-regression-iterations= that has docstring
 
 ** Example 1
 The goal is a linear regression of data in file =ex1data1.txt= that is
-part of the exercise and can be found on-line 
+part of the exercise and can be found on-line
 
 Following lisp source block generates coefficients =k= and =q= for best fit.
 #+NAME: ex1-lr
-#+BEGIN_SRC lisp :package regression :var datafile="~/src/machine-learning-course/ex1/ex1data1.txt"
+#+BEGIN_SRC lisp :package regression :var datafile="/opt/compressed/git/machine-learning-course/ex1/ex1data1.txt"
 (multiple-value-call #'linear-get-coefficients (read-comma-file datafile))
 #+END_SRC
 
 #+RESULTS: ex1-lr
-| -3.8957806 | 1.1930337 |
+| -3.8957644 | 1.1930298 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
-#+header: :var file="~/src/machine-learning-course/ex1/ex1data1.txt"
+#+header: :var file="/opt/compressed/git/machine-learning-course/ex1/ex1data1.txt"
 #+header: :var q=ex1-lr[0,0] :var k=ex1-lr[1,0]
 #+BEGIN_SRC gnuplot :exports code :file ex1data1.svg :exports both
 set title "Training data with a linear fit"
@@ -136,23 +122,24 @@ Actually, original point of the second part of example 1 was to
 introduce normalization of the data set. This was not done so far.
 
 #+NAME: ex1data2
-#+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex1/ex1data2.txt"
+#+BEGIN_SRC lisp :package regression :var file="/opt/compressed/git/machine-learning-course/ex1/ex1data2.txt"
   (multiple-value-call #'linear-get-coefficients
    (read-comma-file file) :sigma -1.25e-2)
 #+END_SRC
 
 #+RESULTS: ex1data2
-| 89597.81 | 139.21062 | -8737.958 |
+| 89597.08 | 139.21028 | -8737.767 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
-#+header: :var file="~/src/machine-learning-course/ex1/ex1data2.txt"
+#+header: :var file="/opt/compressed/git/machine-learning-course/ex1/ex1data2.txt"
 #+header: :var q=ex1data2[0,0] :var k1=ex1data2[1,0] :var k2=ex1data2[2,0]
 #+BEGIN_SRC gnuplot :exports code :file ex1data2.svg :exports both
 set xlabel "Size"
 set ylabel "Rooms"
 set zlabel "Cost"
 set view 110,15
-set key box linestyle -1 left top
+set key bo
+x linestyle -1 left top
 splot file using "%lf,%lf,%lf\n" title "Training data",\
    q+k1*x+k2*y title "Linear regression"
 #+END_SRC
@@ -162,17 +149,17 @@ splot file using "%lf,%lf,%lf\n" title "Training data",\
 
 * Logistic
 #+NAME: ex2data1
-#+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
+#+BEGIN_SRC lisp :package regression :var file="/opt/compressed/git/machine-learning-course/ex2/ex2data1.txt"
   (with-open-file (out "lrs.txt" :direction :output :if-exists :supersede)
     (multiple-value-call #'logistic-get-coefficients (read-comma-file2 file)
-      :sigma -1s0 :alpha 1e-7 :out out))
+      :sigma -0.99 :alpha 1e-4 :out out))
 #+END_SRC
 
 #+RESULTS: ex2data1
-| 7.1712723 | -0.06393955 | 0.32472643 | -1306.6571 |
+| 5.0851736 | -0.045614056 | 0.27971417 | -1098.0603 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
-#+header: :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
+#+header: :var file="/opt/compressed/git/machine-learning-course/ex2/ex2data1.txt"
 #+header: :var q=ex2data1[0,0] :var k1=ex2data1[1,0] :var k2=ex2data1[2,0]
 #+header: :var k3=ex2data1[3,0]
 #+BEGIN_SRC gnuplot :exports code :file ex2data1.svg :exports both
@@ -191,7 +178,7 @@ plot file using 1:($3 == 1 ? $2 : 1/0) "%lf,%lf,%lf\n" title "Admitted",\
 [[file:ex2data1.svg]]
 Convergency graph:
 #+BEGIN_SRC gnuplot :exports code :file lrs.svg :exports both :var file="lrs.txt"
-set yrange [*:5]
+set yrange [0:5]
 set xrange [*:*]
 set key box linestyle -1 right top
 plot file u 1 w lines title "Error cost", \
@@ -206,7 +193,7 @@ plot file u 1 w lines title "Error cost", \
 
 Before trying to speed up the regression, lets us measure how long it
 takes and how much it conses.
-#+BEGIN_SRC lisp :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
+#+BEGIN_SRC lisp :package regression :var file="/opt/compressed/git/machine-learning-course/ex2/ex2data1.txt"
   (with-output-to-string (*trace-output*)
     (time
      (multiple-value-call #'logistic-get-coefficients
@@ -216,24 +203,16 @@ takes and how much it conses.
 
 #+RESULTS:
 : Evaluation took:
-:   0.094 seconds of real time
-:   0.093389 seconds of total run time (0.093389 user, 0.000000 system)
-:   98.94% CPU
-:   224,204,985 processor cycles
-:   11,886,208 bytes consed
-:   
+:   0.024 seconds of real time
+:   0.024435 seconds of total run time (0.024435 user, 0.000000 system)
+:   100.00% CPU
+:   58,674,108 processor cycles
+:   130,784 bytes consed
+:
 
-There are several options to reduce consing:
-- create temporary array to hold temporary results, and use =-into=
-  versions of multiplication function in cycles,
-- use stack to allocate temporary results,
-- do not create temporary matrixes and compute everything on the go
-
-However, given the current speed, this is not something I plan at the
-moment.
 
 We will not be able to get below what reading file itself takes.
-#+BEGIN_SRC lisp :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
+#+BEGIN_SRC lisp :var file="/opt/compressed/git/machine-learning-course/ex2/ex2data1.txt"
   (with-output-to-string (*trace-output*)
     (time
        (read-comma-file2 file)))
@@ -241,12 +220,12 @@ We will not be able to get below what reading file itself takes.
 
 #+RESULTS:
 : Evaluation took:
-:   0.002 seconds of real time
-:   0.001888 seconds of total run time (0.001888 user, 0.000000 system)
+:   0.001 seconds of real time
+:   0.000668 seconds of total run time (0.000668 user, 0.000000 system)
 :   100.00% CPU
-:   4,565,640 processor cycles
-:   80,144 bytes consed
-:   
+:   1,612,932 processor cycles
+:   98,080 bytes consed
+:
 
 * Testing sigma values
   :PROPERTIES:
@@ -254,18 +233,17 @@ We will not be able to get below what reading file itself takes.
   :END:
 Generate file with errors of the regression for different sigmas.
 #+header: :results none
-#+BEGIN_SRC lisp :package regression :var file="~/src/machine-learning-course/ex2/ex2data1.txt"
+#+BEGIN_SRC lisp :package regression :var file="/opt/compressed/git/machine-learning-course/ex2/ex2data1.txt"
   (with-open-file (out "/tmp/sigmas.txt"
 				     :direction :output :if-exists :supersede)
     (multiple-value-call #'logistic-try-sigmas
       (read-comma-file2 file)
-      -3s-1 :alpha 0.001 :out out
-      :sampling 20
+      -1s0 :alpha 0.001 :out out
       :count 5000))
 #+END_SRC
 
 #+BEGIN_SRC gnuplot :exports code :file err.svg :exports both :var file="/tmp/sigmas.txt"
-set yrange [0:5]
+set yrange [0:15]
 set xrange [*:*]
 set key box linestyle -1 left bottom
 plot for [IDX=0:4] file i IDX u 1 w lines title columnheader(1)
@@ -274,7 +252,7 @@ plot for [IDX=0:4] file i IDX u 1 w lines title columnheader(1)
 #+RESULTS:
 [[file:err.svg]]
 #+BEGIN_SRC gnuplot :exports code :file err-both.svg :exports both :var file="/tmp/sigmas.txt"
-set yrange [0:5]
+set yrange [0:*]
 set xrange [*:*]
 set key box linestyle -1 left bottom
 plot for [IDX=0:4] file i IDX u 3 w lines title columnheader(1)
@@ -302,3 +280,18 @@ Some employed in this file
 Some employed in this file
 - Use org-table functions to get [[id:22295238-7f56-45a2-bd78-d918c008b58b][docstring of the Lisp functions]] and fill in [[id:db78f098-a6c4-457e-84d6-6d6ec6601026][multiplication speed]]
 - Gnuplot technique to [[id:56ce1f87-af8b-43f6-bad0-bf7c4d74a9f3][plot several data parts]] of file is new to me
+
+#+BEGIN_SRC gnuplot :file f.png :var   file="~/src/machine-learning-course/ex2/ex2data1.txt"
+set yrange [*:*]
+set xrange [*:*]
+set contour
+set view map
+set cntrparam levels discrete 0
+set isosamples 9,9
+splot x*x+100*y*y-900, \
+      file using 1:($3 == 0 ? $2 : 1/0) "%lf,%lf,%lf\n" title "Not admitted", \
+unset contour
+#+END_SRC
+
+#+RESULTS:
+[[file:f.png]]
