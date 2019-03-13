@@ -5,16 +5,16 @@
   :author "Tomas Zellerin <zellerin@gmail.com>"
   :licence "BSD-style"
   :depends-on (rt alexandria)
-  :serial t
+  :serial nil
   ;; components likely need manual reordering
   :components ((:static-file "README.org" :pathname "README.org")
-	       (:static-file "file.svg" :pathname "file.svg")
 	       (:file "package")
 	       (:file "matrixes")
 	       (:file "utils")
 	       (:file "multiply-test")
-	       (:file "linear")
+	       (:file "regression")
 	       (:file "regression-test")
+	       (:file "matrixes-tests")
 	       )
   ;; :long-description ""
   )
