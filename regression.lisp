@@ -3,18 +3,17 @@
 (defmacro do-regression (estimator updater
 			 (Y A sigma rho count)
 			 &body body)
-  "Update repeatedly matrix with regression coeficients to better match observed data, and execute BODY in each iteration.
+  "Update up to COUNT times matrix A, and execute BODY in each iteration.
 
-Takes as parameter
-- the model data original regression coefficients matrix A, matrix of
-  the independent values X, matrix of observed values Y
-- the regression process data: rho below 1s0 prevents overfitting, and
-  sigma determines the speed of the regression.
+In each step, A is set to ρA+σU, where U is provided updater.
+
+Parameter ρ below 1s0 prevents overfitting, and σ determines the speed of the regression.
 
 The body is executed with these bindings:
 - ESTIMATE for estimated value,
 - ERR for difference between the ESTIMATE and Y
-- Iteration count I"
+- Iteration count I
+"
   `(loop
      with err = (make-array (array-dimensions Y)
 			    :element-type 'single-float)
