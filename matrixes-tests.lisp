@@ -58,6 +58,9 @@
 
   #2A((35 -7)(12 -31)(45 70)))
 
+(with-matrixes
+    (+ 1.0 2.0 3.0))
+
 (rt:deftest (linear-combination mat)
     (with-matrixes
 	(+ (* 3 #.(make-array '(3 3) :initial-element 1))
