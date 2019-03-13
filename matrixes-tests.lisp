@@ -88,3 +88,14 @@
 	  :field fixnum)
     (t (e) (type-of e)))
   matrix-error)
+
+(rt:deftest normalize
+    (multiple-value-bind (x a)
+	(regression::normalize #A ((2 3) t (1 0.5 1) (1 -0.5 3)))
+      (values
+       (with-matrixes
+	   (map round X) :field fixnum)
+       (with-matrixes
+	   (map round a) :field fixnum)))
+  #2A ((1 1 -1) (1 -1 1))
+  #2a ((1 -0 -2) (0 2 0) (0 0 1)))

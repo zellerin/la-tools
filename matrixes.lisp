@@ -11,11 +11,6 @@ Otherwise it denotes name of a variable and follows its size.")
 
 (defvar *matrix-zero* (coerce 0 *matrix-field*))
 
-(defun compatible-size (s1 s2)
-  (or (eq :any s1)
-      (eq :any s2)
-      (= s1 s2)))
-
 (define-condition matrix-error (simple-error)
   ((op     :accessor get-op     :initarg :op)
    (params :accessor get-params :initarg :params)
@@ -23,6 +18,15 @@ Otherwise it denotes name of a variable and follows its size.")
   (:report
    (lambda (o stream)
      (format stream "Matrix error during ~A ~A" (get-op o) (get-params o)))))
+
+(defun compatible-size (s1 s2)
+  (or (eq :any s1) (eq :any s2) (= s1 s2)))
+
+(defun assert-compatible-size (s1 s2 op params)
+  (assert (compatible-size s1 s2)
+	  ()
+	  'matrix-error :op op :params params
+	  :sizes (list s1 s2)))
 
 (defmacro with-matrixes (expr
 			 &key (declarations *default-declarations*)
@@ -60,36 +64,10 @@ Use optional declarations to indicate scalars or matrix sizes."
 			    ,(funcall res-expr i j))))))))))))
 
 (defun handle-summation (op declarations expr env)
-  (destructuring-bind (a-term . more-terms) expr
-    (multiple-value-bind (a-res-type a-sizes a-res-expr a-assertions a-bindings)
-	(with-matrixes* declarations a-term env)
-      (unless more-terms
-	(return-from handle-summation
-	  (values a-res-type a-sizes a-res-expr a-assertions a-bindings)))
-      (multiple-value-bind (b-res-type b-sizes b-res-expr b-assertions b-bindings)
-	  ; + even when op is - (!)
-	  (with-matrixes* declarations `(+ ,@more-terms) env)
-	(cond
-	  ((and (eq 'scalar a-res-type)
-		(eq 'scalar b-res-type))
-	   (values 'scalar nil `(,op ,a-res-expr ,b-res-expr)
-		   (append a-assertions b-assertions)))
-	  ((or (eq 'scalar a-res-type) (eq 'scalar b-res-type))
-	   (error "Cannot sum scalar and matrix: ~s ~s" a-term more-terms))
-	  (t
-	   (values 'matrix `(,(car a-sizes) ,(cadr a-sizes))
-		   (lambda (i j)
-		     `(,op ,(matrix-element-of a-res-type a-res-expr i j)
-			 ,(matrix-element-of b-res-type b-res-expr i j)))
-		   (append a-assertions b-assertions
-			   `((assert (and
-				      (compatible-size ,(car a-sizes) ,(car b-sizes))
-				      (compatible-size ,(cadr a-sizes) ,(cadr b-sizes)))
-				     ()
-				     'matrix-error
-				     :op "adding"
-				     :params (cons ',a-term ',more-terms))))
-		   (append a-bindings b-bindings))))))))
+  (cond
+    ((eq (with-matrixes* declarations (car expr) env) 'scalar)
+     (error "Summation of scalars not set yet"))
+    (t (handle-map declarations `(,op ,@expr) env))))
 
 (defun handle-multiply (declarations expr env)
   (multiple-value-bind (a-res-type a-sizes a-res-expr a-assertions a-bindings)
@@ -161,8 +139,10 @@ Use optional declarations to indicate scalars or matrix sizes."
 	       = (multiple-value-call 'list (with-matrixes* declarations more-args env))
 	     append new-bindings into all-bindings
 	     append (append new-assertions
-			    `((assert (compatible-size ,(car new-sizes) ,(car sizes)))
-			      (assert (compatible-size ,(cadr new-sizes) ,(cadr sizes)))))
+			    `((assert-compatible-size ,(car new-sizes) ,(car sizes)
+						      ',(car expr) ',(cdr expr))
+			      (assert-compatible-size ,(cadr new-sizes) ,(cadr sizes)
+						      ',(car expr) ',(cdr expr))))
 	     into all-assertions
 	     do
 		(assert (not (equalp 'scalar new-res-type)))

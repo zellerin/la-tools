@@ -15,16 +15,24 @@ The body is executed with these bindings:
 - ESTIMATE for estimated value,
 - ERR for difference between the ESTIMATE and Y
 - Iteration count I"
-  `(loop for estimate = (with-matrixes ,estimator :declarations nil)
-	 for err  = (with-matrixes (- estimate ,Y)
-		     :declarations nil)
-	 for i from 0 to ,count do
-	   (with-matrixes (+ (* ,rho ,A)
-			     (* ,sigma ,updater))
-	     :target ,A
-	     :declarations ((scalar ,rho ,sigma)))
-	   (setf ,sigma (* ,sigma 1.0001))
-	   (progn ,@body)))
+  `(loop
+     with err = (make-array (array-dimensions Y)
+			    :element-type 'single-float)
+     and estimate = (make-array (array-dimensions Y)
+				:element-type 'single-float)
+     for i from 0 to ,count
+     do
+	(with-matrixes ,estimator :declarations nil
+	  :target estimate)
+	(with-matrixes (- estimate ,Y)
+	  :declarations nil
+	  :target err)
+	(with-matrixes (+ (* ,rho ,A)
+			  (* ,sigma ,updater))
+	  :target ,A
+	  :declarations ((scalar ,rho ,sigma)))
+	(setf ,sigma (* ,sigma 1.0001))
+	(progn ,@body)))
 
 (defun linear-regression-iterations (Y A X msigma alpha count out
 				     &aux
@@ -43,8 +51,8 @@ The body is executed with these bindings:
 				       (rho (+ 1s0 (* alpha msigma))))
   (declare (single-float sigma rho)
 	   ((simple-array single-float) Y A X))
-  (do-regression (map float-sigma (* X A))
-      (* (transpose X) (map float-dsigma err estimate))
+  (do-regression (map sigma (* X A))
+      (* (transpose X) (map dsigma err estimate))
       (Y A sigma rho count)
     (when (zerop (mod i 100))
       (let ((e (trace-times-transposed err err))
