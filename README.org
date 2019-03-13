@@ -178,8 +178,11 @@ plot file using 1:($3 == 1 ? $2 : 1/0) "%lf,%lf,%lf\n" title "Admitted",\
 [[file:ex2data1.svg]]
 Convergency graph:
 #+BEGIN_SRC gnuplot :exports code :file lrs.svg :exports both :var file="lrs.txt"
-set yrange [0:5]
-set xrange [*:*]
+set yrange [0:*]
+set xrange [0:*]
+set xlabel "Iteration"
+set ylabel "Normalized error costs"
+set title "Cost after iterations"
 set key box linestyle -1 right top
 plot file u 1 w lines title "Error cost", \
   file u 2 w lines title "A² cost", \
@@ -193,7 +196,7 @@ plot file u 1 w lines title "Error cost", \
 
 Before trying to speed up the regression, lets us measure how long it
 takes and how much it conses.
-#+BEGIN_SRC lisp :package regression :var file="/opt/compressed/git/machine-learning-course/ex2/ex2data1.txt"
+#+BEGIN_SRC lisp :package regression :var file="ex2data1.txt"
   (with-output-to-string (*trace-output*)
     (time
      (multiple-value-call #'logistic-get-coefficients
@@ -203,28 +206,11 @@ takes and how much it conses.
 
 #+RESULTS:
 : Evaluation took:
-:   0.024 seconds of real time
-:   0.024435 seconds of total run time (0.024435 user, 0.000000 system)
+:   0.026 seconds of real time
+:   0.025790 seconds of total run time (0.025720 user, 0.000070 system)
 :   100.00% CPU
-:   58,674,108 processor cycles
-:   130,784 bytes consed
-:
-
-
-We will not be able to get below what reading file itself takes.
-#+BEGIN_SRC lisp :var file="/opt/compressed/git/machine-learning-course/ex2/ex2data1.txt"
-  (with-output-to-string (*trace-output*)
-    (time
-       (read-comma-file2 file)))
-#+END_SRC
-
-#+RESULTS:
-: Evaluation took:
-:   0.001 seconds of real time
-:   0.000668 seconds of total run time (0.000668 user, 0.000000 system)
-:   100.00% CPU
-:   1,612,932 processor cycles
-:   98,080 bytes consed
+:   77,313,725 processor cycles
+:   97,968 bytes consed
 :
 
 * Testing sigma values
@@ -233,19 +219,18 @@ We will not be able to get below what reading file itself takes.
   :END:
 Generate file with errors of the regression for different sigmas.
 #+header: :results none
-#+BEGIN_SRC lisp :package regression :var file="/opt/compressed/git/machine-learning-course/ex2/ex2data1.txt"
-  (with-open-file (out "/tmp/sigmas.txt"
-				     :direction :output :if-exists :supersede)
-    (multiple-value-call #'logistic-try-sigmas
-      (read-comma-file2 file)
-      -1s0 :alpha 0.001 :out out
-      :count 5000))
+#+BEGIN_SRC lisp :package regression :var file="ex2data1.txt"
+  (with-open-file (out "/tmp/sigmas.txt" :direction :output :if-exists :supersede)
+    (dolist (sigma '(-0.1 -0.3 -0.1 -3.0 -10.0))
+      (format out "~3&~a~%" sigma)
+      (multiple-value-call #'logistic-get-coefficients (read-comma-file2 file)
+	:sigma sigma :alpha 1e-4 :out out)))
 #+END_SRC
 
 #+BEGIN_SRC gnuplot :exports code :file err.svg :exports both :var file="/tmp/sigmas.txt"
-set yrange [0:15]
+set yrange [0:*]
 set xrange [*:*]
-set key box linestyle -1 left bottom
+set key box linestyle -1 left bottom columnheader
 plot for [IDX=0:4] file i IDX u 1 w lines title columnheader(1)
 #+END_SRC
 
@@ -269,10 +254,6 @@ Some employed in this file
 
 
 * BUGS/next steps
-- [ ] Linear combination being destructive is counterintuitive. Rename
-  to update and define true non-destructive combination
-- [X] Normalization of X is missing
-- [X] Better optimizer for logistic example <- fixed a bit by scaling
 - [ ] Do not regularize A_0 (why?)
 
 
