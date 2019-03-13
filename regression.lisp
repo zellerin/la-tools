@@ -51,14 +51,18 @@ The body is executed with these bindings:
 				       (rho (+ 1s0 (* alpha msigma))))
   (declare (single-float sigma rho)
 	   ((simple-array single-float) Y A X))
-  (do-regression (map sigma (* X A))
-      (* (transpose X) (map dsigma err estimate))
-      (Y A sigma rho count)
-    (when (zerop (mod i 100))
-      (let ((e (trace-times-transposed err err))
-	    (a-err (* alpha 2s0 (trace-times-transposed A A))))
-	(format out "~a ~a ~a~%"
-		e A-err (+ e A-err))))))
+  (let ((samples (array-dimension X 0))
+	(parameters (array-dimension X 1))
+	(dependents (array-dimension A 1)))
+    (when out (format out "~&# Samples: ~d Parameters: ~d Dependends: ~d~%" samples parameters dependents))
+    (do-regression (map sigma (* X A))
+	(* (transpose X) (map dsigma err estimate))
+	(Y A sigma rho count)
+      (when (and out (zerop (mod i 100)))
+	(let ((e (/ (trace-times-transposed err err) 2.0 samples dependents))
+	      (a-err (/ (* (- 1 rho) (trace-times-transposed A A)) 2.0 dependents)))
+	  (format out "~a ~a ~a~%"
+		  e A-err  (+ e A-err)))))))
 
 (defun get-coefficients (fn y raw-x &key
 				   (A (make-random-array (array-dimension raw-x 1) 1 2s-2))
