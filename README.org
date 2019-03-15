@@ -94,11 +94,13 @@ part of the exercise and can be found on-line
 Following lisp source block generates coefficients =k= and =q= for best fit.
 #+NAME: ex1-lr
 #+BEGIN_SRC lisp :package regression :var datafile="/opt/compressed/git/machine-learning-course/ex1/ex1data1.txt"
-(multiple-value-call #'linear-get-coefficients (read-comma-file datafile))
+(with-open-file (out "ex1.txt" :direction :output :if-exists :supersede)
+(multiple-value-call #'get-coefficients #'linear-updater (read-comma-file datafile) :out out
+   :sigma 0.1 :alpha 0.1))
 #+END_SRC
 
 #+RESULTS: ex1-lr
-| -3.8957644 | 1.1930298 |
+| -3.7102666 | 1.1362222 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var file="/opt/compressed/git/machine-learning-course/ex1/ex1data1.txt"
@@ -118,17 +120,14 @@ plot file using "%lf,%lf\n" title "Training data",\
 [[file:ex1data1.svg]]
 
 * Multiple variable LR
-Actually, original point of the second part of example 1 was to
-introduce normalization of the data set. This was not done so far.
-
 #+NAME: ex1data2
 #+BEGIN_SRC lisp :package regression :var file="/opt/compressed/git/machine-learning-course/ex1/ex1data2.txt"
-  (multiple-value-call #'linear-get-coefficients
-   (read-comma-file file) :sigma -1.25e-2)
+  (multiple-value-call #'get-coefficients #'linear-updater
+   (read-comma-file file) :sigma 1.25e-2)
 #+END_SRC
 
 #+RESULTS: ex1data2
-| 89597.08 | 139.21028 | -8737.767 |
+| 89209.83 | 138.91545 | -8429.684 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var file="/opt/compressed/git/machine-learning-course/ex1/ex1data2.txt"
@@ -151,12 +150,12 @@ splot file using "%lf,%lf,%lf\n" title "Training data",\
 #+NAME: ex2data1
 #+BEGIN_SRC lisp :package regression :var file="/opt/compressed/git/machine-learning-course/ex2/ex2data1.txt"
   (with-open-file (out "lrs.txt" :direction :output :if-exists :supersede)
-    (multiple-value-call #'logistic-get-coefficients (read-comma-file2 file)
-      :sigma -0.99 :alpha 1e-4 :out out))
+    (multiple-value-call #'get-coefficients #'logistic-updater (read-comma-file2 file)
+      :sigma 0.99 :alpha 0.1 :out out))
 #+END_SRC
 
 #+RESULTS: ex2data1
-| 5.0851736 | -0.045614056 | 0.27971417 | -1098.0603 |
+| -2.4800763 | 0.02487855 | 0.04208178 | -97.6259 |
 
 The coefficients are used by the gnuplot to draw the line agains data points.
 #+header: :var file="/opt/compressed/git/machine-learning-course/ex2/ex2data1.txt"
@@ -199,53 +198,80 @@ takes and how much it conses.
 #+BEGIN_SRC lisp :package regression :var file="ex2data1.txt"
   (with-output-to-string (*trace-output*)
     (time
-     (multiple-value-call #'logistic-get-coefficients
+     (multiple-value-call #'get-coefficients #'linear-updater
        (read-comma-file2 file)
-       :sigma -1s0 :alpha 0.0001)))
+       :sigma 1s0 :alpha 0.0001)))
 #+END_SRC
 
 #+RESULTS:
 : Evaluation took:
-:   0.026 seconds of real time
-:   0.025790 seconds of total run time (0.025720 user, 0.000070 system)
+:   0.003 seconds of real time
+:   0.003101 seconds of total run time (0.003101 user, 0.000000 system)
 :   100.00% CPU
-:   77,313,725 processor cycles
-:   97,968 bytes consed
+:   7,455,039 processor cycles
+:   65,440 bytes consed
 :
 
-* Testing sigma values
+* Testing sigma - linear
   :PROPERTIES:
   :ID:       56ce1f87-af8b-43f6-bad0-bf7c4d74a9f3
+  :header-args: :var tracefile="/tmp/trace-linear.txt"
   :END:
 Generate file with errors of the regression for different sigmas.
-#+header: :results none
-#+BEGIN_SRC lisp :package regression :var file="ex2data1.txt"
-  (with-open-file (out "/tmp/sigmas.txt" :direction :output :if-exists :supersede)
-    (dolist (sigma '(-0.1 -0.3 -0.1 -3.0 -10.0))
-      (format out "~3&~a~%" sigma)
-      (multiple-value-call #'logistic-get-coefficients (read-comma-file2 file)
-	:sigma sigma :alpha 1e-4 :out out)))
-#+END_SRC
 
-#+BEGIN_SRC gnuplot :exports code :file err.svg :exports both :var file="/tmp/sigmas.txt"
-set yrange [0:*]
-set xrange [*:*]
-set key box linestyle -1 left bottom columnheader
-plot for [IDX=0:4] file i IDX u 1 w lines title columnheader(1)
-#+END_SRC
+#+CALL: trace-regression-progress(file="ex1data1.txt", updater='linear-updater)
+
+#+CALL: draw-fitting-error()
 
 #+RESULTS:
 [[file:err.svg]]
-#+BEGIN_SRC gnuplot :exports code :file err-both.svg :exports both :var file="/tmp/sigmas.txt"
-set yrange [0:*]
-set xrange [*:*]
-set key box linestyle -1 left bottom
-plot for [IDX=0:4] file i IDX u 3 w lines title columnheader(1)
-#+END_SRC
+
+#+CALL: draw-total-error()
 
 #+RESULTS:
 [[file:err-both.svg]]
 
+* Testing sigma values
+  :PROPERTIES:
+  :ID:       56ce1f87-af8b-43f6-bad0-bf7c4d74a9f3
+  :header-args: :var tracefile="/tmp/trace-logistic.txt"
+  :END:
+Generate file with errors of the regression for different sigmas.
+#+NAME: trace-regression-progress
+#+header: :results none
+#+BEGIN_SRC lisp :package regression :var file="ex2data1.txt" updater='logistic-updater
+  (with-open-file (out tracefile :direction :output :if-exists :supersede)
+    (dolist (sigma '(0.01 0.03 0.1 0.3))
+      (format out "~3&sigma=~a~%" sigma)
+      (multiple-value-call #'get-coefficients (symbol-function updater) (read-comma-file2 file)
+	:sigma sigma :alpha 0.1 :out out :tracing 20)))
+#+END_SRC
+
+#+NAME: draw-fitting-error
+#+BEGIN_SRC gnuplot :exports code :file err.svg :exports both
+set yrange [0:*]
+set xrange [*:*]
+set xlabel "Iterations"
+set ylabel "Cost value"
+set key box linestyle -1 left bottom columnheader
+plot for [IDX=0:4] tracefile i IDX u 1:2 w lines title columnheader(1)
+#+END_SRC
+
+#+RESULTS:
+[[file:err.svg]]
+#+NAME: draw-total-error
+#+BEGIN_SRC gnuplot :exports code :file err-both.svg :exports both
+set yrange [0:*]
+set xrange [*:*]
+set title "Total cost function value after iterations"
+set xlabel "Iterations"
+set ylabel "Cost value"
+set key box linestyle -1 left bottom
+plot for [IDX=0:4] tracefile i IDX u 1:4 w lines title columnheader(1)
+#+END_SRC
+
+#+RESULTS: draw-total-error
+[[file:err-both.svg]]
 
 * Emacs/Org notes
 Some employed in this file
