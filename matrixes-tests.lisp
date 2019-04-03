@@ -96,3 +96,26 @@
 	   (map round a) :field fixnum)))
   #2A ((1 1 -1) (1 -1 1))
   #2a ((1 -0 -2) (0 2 0) (0 0 1)))
+
+(rt:deftest gamma-matrixes
+    (let* ((gamma
+	     (vector
+	      #2A((1 0 0 0) (0 1 0 0) (0 0 -1 0) (0 0 0 -1))
+	      #2A((0 0 0 1) (0 0 1 0)  (0 -1 0 0) (-1 0 0 0))
+	      #2A((0 0 0 #C (0 -1)) (0 0 #C (0 1) 0) (0 #C (0 1) 0 0) (#C (0 -1) 0 0 0))
+	      #2A((0 0 1 0) (0 0 0 -1) (-1 0 0 0) (0 1 0 0))))
+	   (res (make-array '(4 4))))
+      (dotimes (i 4)
+	(dotimes (j 4)
+	  (setf (aref res i j)
+		(position
+		 (with-matrixes (+
+				 (* (aref gamma i) (aref gamma j))
+				 (* (aref gamma j) (aref gamma i)))
+		   :field t)
+		 #(#2a((2 0 0 0) (0 2 0 0) (0 0 2 0) (0 0 0 2))
+		   #2a((0 0 0 0) (0 0 0 0) (0 0 0 0) (0 0 0 0))
+		   #2a((-2 0 0 0) (0 -2 0 0) (0 0 -2 0) (0 0 0 -2)))
+		 :test 'equalp))))
+      res)
+  #2A((0 1 1 1) (1 2 1 1) (1 1 2 1) (1 1 1 2)))
