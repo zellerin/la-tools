@@ -4,7 +4,7 @@
   "Default field for the matrix elements.")
 
 (defvar *matrix-optimize*
-  (and nil '(speed (safety 0) (debug 0)))
+  (and nil '(speed (safety 1) (debug 0)))
   "Default optimization for the matrix calculation.")
 
 (defvar *default-declarations*
@@ -38,32 +38,46 @@ Otherwise it denotes name of a variable and follows its size.")
 	  :sizes (list s1 s2)))
 
 (defclass base-matrix-object ()
-  ())
+  ()
+  (:documentation "Mixin for expression objects that represent a matrix (as oposed to, e.g. scalar)"))
 
 (defclass expr-with-children ()
   ((children   :accessor get-children   :initarg :children)
    (assertions :accessor get-assertions :initarg :assertions))
-  (:default-initargs :children nil :assertions nil))
+  (:default-initargs :children nil :assertions nil)
+  (:documentation "Mixin for expression objects that depends on other objects (aka children).
+
+Binding for chidren are prepended before bindings for the object, and
+there might be assertions to ensure that the children are
+compatible."))
 
 (defclass expr-object (expr-with-children base-matrix-object)
   ((sizes      :accessor get-sizes      :initarg :sizes)
    (expr       :accessor get-expr       :initarg :expr))
-  (:default-initargs))
+  (:default-initargs)
+  (:documentation "Object that represents a matrix with element values that need to be calculated.
+
+The calculation is delayed until assigning to a target matrix or similar time."))
 
 (defclass scalar-expr-object (expr-with-children)
   ((type       :accessor get-type       :initarg :type :allocation :class)
    (expr       :accessor get-expr       :initarg :expr)
    (sizes      :accessor get-sizes      :initarg :sizes :allocation :class))
-  (:default-initargs :sizes nil))
+  (:default-initargs :sizes nil)
+  (:documentation "Object that represents a scalar expression (scalar value, trace of matrix, etc)"))
 
 (defclass matrix-copyable-object (base-matrix-object)
   ((object       :accessor get-object       :initarg :object :reader get-expr)
    (row-var-name :accessor get-row-var-name :initarg :row-var-name)
    (col-var-name :accessor get-col-var-name :initarg :col-var-name))
-  (:default-initargs :row-var-name (gensym "ROW") :col-var-name (gensym "COL")))
+  (:default-initargs :row-var-name (gensym "ROW") :col-var-name (gensym "COL"))
+  (:documentation "Object that represents an expression that produces an array.
+
+The size values of elements is determined at run time."))
 
 (defclass matrix-literal-object (base-matrix-object)
-  ((object       :accessor get-object       :initarg :object :reader get-expr)))
+  ((object       :accessor get-object       :initarg :object :reader get-expr))
+  (:documentation "Object that represents a literal array (with known size and elements"))
 
 (defgeneric matrix-element-of* (object i j)
   (:method ((object matrix-copyable-object) i j)
@@ -106,7 +120,21 @@ Otherwise it denotes name of a variable and follows its size.")
     (append (reduce 'append (get-children object) :key 'get-assertions)
 	    (call-next-method))))
 
-
+(defgeneric assign-expr (object target)
+  (:method (object (target symbol)) `(setf ,target ,(get-expr object)))
+  (:method (object (target (eql nil))) (get-expr object))
+  (:method ((object expr-object) res)
+    (let ((i (gensym "I"))
+	  (j (gensym "J")))
+      `(dotimes (,i ,(car (get-sizes object)) ,res)
+	(dotimes (,j ,(cadr (get-sizes object)))
+	  (setf (aref ,res ,i ,j)
+		,(funcall (get-expr object) i j))))))
+  (:method ((object expr-object) (target (eql nil)))
+    `(let ((target (make-array (list ,@(get-sizes object))
+				:element-type ',*matrix-field*
+				:initial-element ,*matrix-zero*)))
+       ,(assign-expr object 'target))))
 
 (defmacro with-matrixes (expr
 			 &key (declarations *default-declarations*)
@@ -122,27 +150,15 @@ Use optional declarations to indicate scalars or matrix sizes."
 	(*default-declarations* declarations))
     (let ((result (calculate-matrix-object declarations expr env)))
       `(let ,(get-bindings result)
-	 ,@ (get-assertions result)
-	 ,(etypecase result
-	    ((or matrix-copyable-object matrix-literal-object) (get-object result))
-	    (scalar-expr-object (get-expr result))
-	    (base-matrix-object
-	     (let ((i (gensym "I"))
-		   (j (gensym "J")))
-	       `(let ((res ,(or target
-				`(make-array (list ,@ (get-sizes result))
-					     :element-type ',*matrix-field*
-					     :initial-element ,*matrix-zero*))))
-		  (declare (optimize ,@optimize)
-			   ,@(mapcar (lambda (d)
-				       `((simple-array ,*matrix-field* (,(cadr d) ,(caddr d)))
-					 ,(car d)))
-				     (remove-if (lambda (a) (member a '(vector scalar))) declarations
-						:key 'car)))
-		  (dotimes (,i ,(car (get-sizes result)) res)
-		    (dotimes (,j ,(cadr (get-sizes result)))
-		      (setf (aref res ,i ,j)
-			    ,(funcall (get-expr result) i j))))))))))))
+	 (declare (optimize ,@optimize)
+		  ,@(mapcar (lambda (d)
+			      `((simple-array ,*matrix-field* (,(cadr d) ,(caddr d)))
+				,(car d)))
+			    (remove-if (lambda (a) (member a '(vector scalar))) declarations
+				       :key 'car)))
+	 ,@(get-assertions result)
+
+	 ,(assign-expr result target)))))
 
 (defgeneric handle-multiply* (a b)
   (:method (a b) nil)
@@ -173,7 +189,12 @@ Use optional declarations to indicate scalars or matrix sizes."
 				  ()
 				  'matrix-error :op "multiplication"
 				  (list ,a ,b)))
-			(list a b)))))
+			(list a b))))
+  ;; optimization that can be removed: compute during compilation phase
+  (:method ((a matrix-literal-object) (b matrix-literal-object))
+    (make-instance 'matrix-literal-object
+		   :object (funcall (compile ()
+					     `(lambda () ,(assign-expr (call-next-method) nil)))))))
 
 (defun handle-multiply (declarations expr env)
   (let ((a-obj (calculate-matrix-object declarations (car expr) env))
@@ -232,31 +253,8 @@ Use optional declarations to indicate scalars or matrix sizes."
 					       all-assertions
 					       (cons first-par more-args-objs))))))))
 
-(defun handle-diag (declarations expr env)
-  (declare (ignore declarations env))
-  (make-expr-object (list (length expr) (length expr))
-	  (lambda (i j)
-	    `(if (= ,i ,j) (elt ,(apply 'vector  expr) ,i) ,(coerce 0 *matrix-field*)))))
-
-(defun handle-transpose (declarations expr env)
-  (assert (null (cdr expr)))
-  (let ((result (calculate-matrix-object declarations (car expr) env)))
-    (etypecase result
-      (scalar-expr-object expr)
-      (base-matrix-object
-       (make-expr-object (reverse (get-sizes result))
-			 (lambda (i j)
-			   (matrix-element-of* result j i))
-			 nil (list result))))))
-
-(defun handle-summation (declarations expr env op)
-  (handle-map declarations `(,op ,@expr) env))
-
 (defvar *with-matrixes-handlers*
-  '((+ handle-summation +)
-    (- handle-summation -)
-    (map handle-map)
-    (diag handle-diag)
+  '((map handle-map)
     (trace handle-trace)
     (transpose handle-transpose)
     (* handle-multiply)))
@@ -271,6 +269,25 @@ Use optional declarations to indicate scalars or matrix sizes."
   (declare (ignore env declarations))
   (make-instance 'matrix-copyable-object
 		 :object `(aref ,@expr)))
+
+(define-matrix-handler + handle-plus
+  (handle-map declarations `(+ ,@expr) env))
+
+(define-matrix-handler - handle-minus
+  (handle-map declarations `(- ,@expr) env))
+
+(define-matrix-handler transpose handle-transpose
+  (assert (null (cdr expr)))
+  (let ((result (calculate-matrix-object declarations (car expr) env)))
+    (etypecase result
+      (scalar-expr-object expr)
+      (base-matrix-object
+       (make-expr-object (reverse (get-sizes result))
+			 (lambda (i j)
+			   (matrix-element-of* result j i))
+			 nil (list result))))))
+
+
 
 (defun calculate-matrix-object (declarations expr env)
   (when (atom expr)
@@ -287,7 +304,6 @@ Use optional declarations to indicate scalars or matrix sizes."
 		   nil
 		   `((,rows (length ,expr))))))
 	((arrayp expr)
-	 ;; FIXME: resolve sizes in compile time
 	 (make-instance 'matrix-literal-object :object expr))
 	((or (constantp expr env)
 	     (and (symbolp expr) (member expr (assoc 'scalar declarations))))
