@@ -18,14 +18,18 @@
 	     `(defun ,name (A Y X estimate err sigma rho)
 		(declare ((simple-array single-float) Y A X estimate err))
 		(declare (single-float rho sigma))
+		(setq rho (- 1 rho))
 		(with-matrixes ,estimator :declarations nil :target estimate)
 		(with-matrixes (- Y estimate) :declarations nil :target err)
-		(with-matrixes (+ (map (lambda (a)
-					 (cond ((> a rho) (- a rho))
-					       ((> (- rho) a) (+ rho a))
-					       (t 0))) A)
-				  (* sigma ,updater)) :target A
-		  :declarations ((scalar rho sigma))))))
+		(with-matrixes (+ A (* sigma ,updater)) :target A
+		  :declarations ((scalar sigma)))
+		(with-matrixes
+		    (map (lambda (a)
+			   (cond ((> a rho) (- a rho))
+				 ((> (- rho) a) (+ rho a))
+				 (t 0.0))) A)
+		   :target A
+		  :declarations ((scalar rho))))))
 
   (make-updater-step linear-updater-l1reg (* X A) (* (transpose X) err))
   (make-updater-step logistic-updater-l1reg
@@ -99,7 +103,8 @@ ESTIMATOR and ERR are calculated even when not needed. This may change in future
     Y A X msigma alpha count out  tracing))
 
 (defun get-coefficients (fn y raw-x &key
-				      (A (make-random-array (array-dimension raw-x 1) 1 1s-2))
+				      (A (make-random-array (array-dimension raw-x 1)
+							    (array-dimension y 1) 1s-2))
 				      (sigma (- (/ 1s0 (array-dimension y 0))))
 				      (alpha 0s0)
 				      out (tracing 100)
@@ -108,18 +113,21 @@ ESTIMATOR and ERR are calculated even when not needed. This may change in future
 
 Assumes that first row of X is all ones. This corresponds to getting
 linear term, and it is also used for normalization purposes."
+  (assert (dotimes (i (array-dimension raw-x 0) t)
+	    (unless (= 1.0 (aref raw-x i 0)) (return nil))))
   (multiple-value-bind (x norm) (normalize raw-x)
     (do-normalized-iteration fn y A x sigma alpha count out tracing)
-    (make-array (array-dimension A 0)
-		:element-type 'single-float
-		:displaced-to (with-matrixes (* norm A)
-				:optimize ((speed 1))))))
+    (with-matrixes (* norm A)
+				 :optimize ((speed 1)))))
 
 (defun linear-get-coefficients (&rest args)
-  (apply #'get-coefficients #'linear-regression-iterations args))
+  (apply #'get-coefficients #'linear-updater args))
 
 (defun logistic-get-coefficients (&rest args)
-  (apply #'get-coefficients #'logistic-regression-iterations args))
+  (apply #'get-coefficients #'logistic-updater args))
+
+(defun logistic-l1-get-coefficients (&rest args)
+  (apply #'get-coefficients #'logistic-updater-l1reg args))
 
 (defmacro with-test-case ((samples indeps deps) &body body)
   `(multiple-value-bind (X Y A) (test-case ,samples ,indeps ,deps)

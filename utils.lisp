@@ -31,9 +31,9 @@ This is same as Sum(Aij Bij) over all i, j."
   "Return trace of matrix product, =Tr Aᵀ⋅B="
   (with-matrixes (* (transpose A) B)))
 
-(defun l2-norm (A B)
-  "Return trace of matrix product, =Tr Aᵀ⋅B="
-  (with-matrixes (trace (* (transpose A) B))))
+(defun l2-norm (A)
+  "Return L2 norm of matrix, =Tr Aᵀ⋅A="
+  (with-matrixes (trace (* (transpose A) A))))
 
 (defun make-random-array (x y scale)
   "Make random array of single floats in scale."

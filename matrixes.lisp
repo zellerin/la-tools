@@ -177,6 +177,9 @@ Use optional declarations to indicate scalars or matrix sizes."
     (let ((a-sizes (get-sizes a))
 	  (b-sizes (get-sizes b)))
       (make-expr-object `(,(car a-sizes) ,(cadr b-sizes))
+			;; todo:define do-matrix-elements to create
+			;; the per-matrix loop; then, sparse matrixes
+			;; are easier
 			(lambda (i j)
 			  (let ((k (gensym "K"))
 				(res (gensym "SUM")))
@@ -188,7 +191,7 @@ Use optional declarations to indicate scalars or matrix sizes."
 			`((assert (= ,(cadr a-sizes) ,(car b-sizes))
 				  ()
 				  'matrix-error :op "multiplication"
-				  (list ,a ,b)))
+				  ))
 			(list a b))))
   ;; optimization that can be removed: compute during compilation phase
   (:method ((a matrix-literal-object) (b matrix-literal-object))
