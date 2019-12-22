@@ -30,6 +30,7 @@ Otherwise it denotes name of a variable and follows its size.")
   "Are the sizes of s1 and s2 compatible, that is, same or one or both is :any?"
   (or (eq :any s1) (eq :any s2) (= s1 s2)))
 
+(declaim (inline assert-compatible-size))
 (defun assert-compatible-size (s1 s2 op params)
   "Test assertion that s1 and s2 are compatible before doing operation with parameters."
   (assert (compatible-size s1 s2)
@@ -139,13 +140,17 @@ The size values of elements is determined at run time."))
 (defmacro with-matrixes (expr
 			 &key (declarations *default-declarations*)
 			   (field *matrix-field*)
+			   (matrix-zero (coerce 0 field))
+			   ((:adder *add-op*) *add-op*)
+			   ((:multiplier *multiply-op*) *multiply-op*)
 			   (optimize *matrix-optimize*)
 			   target
+			   (use-assertions t)
 			 &environment env)
   "Run expr in linear algebra context.
 
 Use optional declarations to indicate scalars or matrix sizes."
-  (let ((*matrix-zero* (coerce 0 field))
+  (let ((*matrix-zero* matrix-zero)
 	(*matrix-field* field)
 	(*default-declarations* declarations))
     (let ((result (calculate-matrix-object declarations expr env)))
@@ -156,8 +161,7 @@ Use optional declarations to indicate scalars or matrix sizes."
 				,(car d)))
 			    (remove-if (lambda (a) (member a '(vector scalar))) declarations
 				       :key 'car)))
-	 ,@(get-assertions result)
-
+	 ,@ (and use-assertions (get-assertions result))
 	 ,(assign-expr result target)))))
 
 (defgeneric handle-multiply* (a b)
@@ -165,7 +169,7 @@ Use optional declarations to indicate scalars or matrix sizes."
   (:method (a (b (eql nil))) a)
   (:method ((a scalar-expr-object) (b scalar-expr-object))
     (make-instance 'scalar-expr-object
-		   :expr `(* ,(get-expr a) ,(get-expr b))
+		   :expr `(,*multiply-op* ,(get-expr a) ,(get-expr b))
 		   :children (list a b)))
   (:method ((a scalar-expr-object) (b base-matrix-object))
     (make-expr-object (get-sizes b)
@@ -186,8 +190,10 @@ Use optional declarations to indicate scalars or matrix sizes."
 			    `(let ((,res ,*matrix-zero*))
 			       (declare (,*matrix-field* ,res))
 			       (dotimes (,k ,(cadr a-sizes) ,res)
-				 (incf ,res (* ,(matrix-element-of* a i k)
-					       ,(matrix-element-of* b k j)))))))
+				 (setf ,res (,*add-op*
+					     ,res
+					     (,*multiply-op* ,(matrix-element-of* a i k)
+									    ,(matrix-element-of* b k j))))))))
 			`((assert (= ,(cadr a-sizes) ,(car b-sizes))
 				  ()
 				  'matrix-error :op "multiplication"
@@ -217,7 +223,8 @@ Use optional declarations to indicate scalars or matrix sizes."
 			    `(let ((,res ,*matrix-zero*))
 			       (declare (,*matrix-field* ,res))
 			       (dotimes (,k ,(car sizes) ,res)
-				 (incf ,res (* ,(matrix-element-of* par-object k k))))))
+				 (setf ,res
+				       (,*add-op* ,res ,(matrix-element-of* par-object k k))))))
 		    :assertions `((assert (= ,(cadr sizes) ,(car sizes))
 					  ()
 					  "Trace on non-square: ~s" ',sizes ))
@@ -273,8 +280,10 @@ Use optional declarations to indicate scalars or matrix sizes."
   (make-instance 'matrix-copyable-object
 		 :object `(aref ,@expr)))
 
+(defvar *add-op* '+)
+(defvar *multiply-op* '*)
 (define-matrix-handler + handle-plus
-  (handle-map declarations `(+ ,@expr) env))
+  (handle-map declarations `(,*add-op* ,@expr) env))
 
 (define-matrix-handler - handle-minus
   (handle-map declarations `(- ,@expr) env))

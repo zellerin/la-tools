@@ -19,7 +19,7 @@ So here is a simple implementation of some LA operations. The macro with-matrixe
    :ORDERED:  t
    :ID:       db78f098-a6c4-457e-84d6-6d6ec6601026
    :END:
-This is speed test with current machine (HP notebook), sbcl,
+   This is speed test with current machine (HP notebook), sbcl,
  and safety level in the code 2
 
 #+NAME: speed-test
@@ -281,6 +281,9 @@ Some employed in this file
 
 * BUGS/next steps
 - [ ] Do not regularize A_0 (why?)
+- [ ] Load images
+- [ ] Write images
+- [ ] l1 decay function
 
 
 * Emacs/Org notes
