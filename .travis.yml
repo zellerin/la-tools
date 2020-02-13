@@ -1,0 +1,12 @@
+language: lisp
+sudo: required
+
+env:
+  matrix:
+    - LISP=sbcl
+
+install:
+  - curl https://raw.githubusercontent.com/luismbo/cl-travis/master/install.sh | sh
+
+script:
+  - cl -e "(ql:quickload 'la-tools)" -e '(unless (rt:do-tests) (uiop:quit -1))'
