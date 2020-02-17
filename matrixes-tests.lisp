@@ -1,12 +1,13 @@
 (in-package linear-algebra)
 (rt:deftest s*m
-    (let ((B #A((2 3) single-float
-		(1.0 0.4 0.2)
-		(0.1 0.2 0.3))))
+    (let ((B (make-array '(2 3) :element-type 'single-float
+			      :initial-contents '((1.0 0.4 0.2)
+						 (0.1 0.2 0.3)))))
       (values
        (with-matrixes (* 12.0 B) )
        (with-matrixes (* 12.0 B))))
-  #1=#A((2 3) single-float (12.0 4.8 2.4) (1.2 2.4 3.6000001))
+  #1=#.(make-array '(2 3) :element-type 'single-float
+			:initial-contents '((12.0 4.8 2.4) (1.2 2.4 3.6000001)))
   #1#)
 (regression-test:deftest scalar
     (with-matrixes 12) 12)
@@ -88,7 +89,7 @@
 
 (rt:deftest normalize
     (multiple-value-bind (x a)
-	(regression::normalize #A ((2 3) t (1 0.5 1) (1 -0.5 3)))
+	(regression::normalize #2A((1 0.5 1) (1 -0.5 3)) )
       (values
        (with-matrixes
 	   (map round X) :field fixnum)
