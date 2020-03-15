@@ -1,5 +1,16 @@
 (in-package linear-algebra)
 
+
+(cz.zellerin.doc:define-section @matrix-ops
+  "Optimized matrix operations are generated with WITH-MATRIXES macro.
+
+By definition, all matrixes are expected to be of *MATRIX-FIELD*
+type. If you change that, you need also change *MATRIX-ZERO*.
+
+MATRIX-ERROR conditions may be thrown during calculation."
+  (with-matrixes))
+
+
 (defparameter *matrix-field* 'single-float
   "Default field for the matrix elements.")
 
@@ -44,17 +55,24 @@ Otherwise it denotes name of a variable and follows its size.")
 
 (defclass expr-with-children ()
   ((children   :accessor get-children   :initarg :children)
-   (assertions :accessor get-assertions :initarg :assertions))
+   (assertions :accessor get-assertions :initarg :assertions
+	       :documentation
+	       "Assertions to ensure that the children nodes are compatible
+	       with each other and possibly with the object."))
   (:default-initargs :children nil :assertions nil)
-  (:documentation "Mixin for expression objects that depends on other objects (aka children).
+  (:documentation
+   "Mixin for expression objects that depends on other objects (aka children).
 
 Binding for chidren are prepended before bindings for the object, and
 there might be assertions to ensure that the children are
 compatible."))
 
 (defclass expr-object (expr-with-children base-matrix-object)
-  ((sizes      :accessor get-sizes      :initarg :sizes)
-   (expr       :accessor get-expr       :initarg :expr))
+  ((sizes      :accessor get-sizes      :initarg :sizes
+	       :documentation "Size of the object. For a matrix, it is a two item list.")
+   (expr       :accessor get-expr       :initarg :expr
+	       :documentation "Function (closure) that provides expression to calculate value of cell with provided indices"
+	       :type (function (fixnum fixnum) t)))
   (:default-initargs)
   (:documentation "Object that represents a matrix with element values that need to be calculated.
 
@@ -91,10 +109,10 @@ The size values of elements is determined at run time."))
 
 (defun make-expr-object (sizes expr &optional assertions children)
   (make-instance 'expr-object
-		     :sizes sizes
-		     :expr expr
-		     :assertions assertions
-		     :children children))
+		 :sizes sizes
+		 :expr expr
+		 :assertions assertions
+		 :children children))
 
 (defgeneric get-bindings (object)
   (:method (object) nil)
@@ -147,9 +165,47 @@ The size values of elements is determined at run time."))
 			   target
 			   (use-assertions t)
 			 &environment env)
-  "Run expr in linear algebra context.
+  "Return expr evaluated as a linear algebra expression.
 
-Use optional declarations to indicate scalars or matrix sizes."
+The `EXPR' is a sexp that is interpreted as a matrix expression. As an
+example, depending on parameters, the functions that are handled are:
+- (map fn parameter …) expects one or more parameters of same shape
+  (scalar, matrix with same dimensions) and returns object with same
+  shape that contains fn applied on individual cells,
+- trace takes trace of a matrix (or keeps a scalar)
+- transpose transposes a matrix (or keeps a scalar unchanged)
+- (* A B) is a scalar or matrix multiplication.
+- + and - are defined intuitively using map
+
+If TARGET is provided, it is assumed to be of the result type of the
+expression (matrix of appropriate size) and it is overwritten. If NIL,
+target matrix is allocated as part of the evaluation. Actually, it can
+be a larger matrix and only result part of the calculation is overwritten.
+
+Each cell of the result is computed from the parameter values
+directly. There is no caching of intermediate results. It means that
+any repeated expression should be calculated explicitly and
+separatedly.
+
+The assumed field is single scalars. Other fields can be used by
+passing FIELD (type to be used for the vector creation and
+declarations), MATRIX-ZERO (zero value for the class), and possibly
+also *ADD-OP and *MULTIPLY-OP* parameters using keywords :adder and
+:multiplier.
+
+OPTIMIZE parameter is passed to the appropriate places inside
+generated code.
+
+DECLARATIONS defines what are the scalar entities (by default
+*DEFAULT-DECLARATIONS*, that is by default alpha and beta) and what are
+the matrix sizes (optionally).
+
+Use optional OPTIMIZE declarations to indicate scalars or matrix sizes.
+
+Internally uses *WITH-MATRIXES-HANDLERS* to find appropriate
+handler. New handlers may be defined using DEFINE-HANDLER.
+"
+
   (let ((*matrix-zero* matrix-zero)
 	(*matrix-field* field)
 	(*default-declarations* declarations))
@@ -280,8 +336,8 @@ Use optional declarations to indicate scalars or matrix sizes."
   (make-instance 'matrix-copyable-object
 		 :object `(aref ,@expr)))
 
-(defvar *add-op* '+)
-(defvar *multiply-op* '*)
+(defvar *add-op* '+ "Addition operator for matrix elements")
+(defvar *multiply-op* '* "Multiplication operator for matrix elements")
 (define-matrix-handler + handle-plus
   (handle-map declarations `(,*add-op* ,@expr) env))
 
@@ -299,9 +355,13 @@ Use optional declarations to indicate scalars or matrix sizes."
 			   (matrix-element-of* result j i))
 			 nil (list result))))))
 
-
-
 (defun calculate-matrix-object (declarations expr env)
+  "Calculate type of a matrix expression
+
+  The function is used to create target object for WITH-MATRIXES is it
+  is not provided by the caller.
+
+  Returns a EXPR-OBJECT."
   (when (atom expr)
     (return-from calculate-matrix-object
       (cond

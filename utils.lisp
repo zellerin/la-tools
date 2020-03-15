@@ -2,6 +2,15 @@
 
 (declaim (inline sigma dsigma))
 
+(cz.zellerin.doc:define-section @utilities
+  ""
+  (make-random-array)
+  (normalize)
+  (sigma)
+  (dsigma)
+  ; requires with-matrixes
+  (trace-times-transposed) (l2-norm))
+
 (defun sigma (x)
   "Calculate logistic function x -> σ(x)
 

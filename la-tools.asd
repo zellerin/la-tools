@@ -4,7 +4,7 @@
   :maintainer "Tomas Zellerin <zellerin@gmail.com>"
   :author "Tomas Zellerin <zellerin@gmail.com>"
   :licence "BSD-style"
-  :depends-on (rt alexandria)
+  :depends-on (rt alexandria cz.zellerin.doc)
   :serial nil
   ;; components likely need manual reordering
   :components ((:static-file "README.org" :pathname "README.org")
