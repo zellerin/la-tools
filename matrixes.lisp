@@ -1,6 +1,5 @@
 (in-package linear-algebra)
 
-
 (cz.zellerin.doc:define-section @matrix-ops
   "Matrix operation code is generated with WITH-MATRIXES macro, e,g,
 : (with-matrices (* alpha A B))
@@ -24,7 +23,7 @@ type. If you change that, you need also change *MATRIX-ZERO*."
   "Default field for the matrix elements.")
 
 (defvar *matrix-optimize*
-  (and nil '(speed (safety 1) (debug 0)))
+  '(speed (safety 1) (debug 0))
   "Default optimization for the matrix calculation.")
 
 (defvar *default-declarations*
@@ -207,7 +206,21 @@ The size values of elements is determined at run time."))
     `(let ((target (make-array (list ,@(get-sizes object))
 				:element-type ',*matrix-field*
 				:initial-element ,*matrix-zero*)))
-       ,(assign-expr object 'target))))
+       ,(assign-expr object 'target)))
+  (:method ((object expr-object) (res cons))
+    (destructuring-bind (key &optional vector (offset 0))
+	res
+      (assert (eq :linearized key) () "Target specification must start with :linearized")
+      (let ((i (gensym "I"))
+	    (j (gensym "J")))
+	`(let* ((offset ,offset)
+		(target ,(or vector
+			     `(make-array (+ offset (* ,@ (get-sizes object)))))))
+	   (dotimes (,i ,(car (get-sizes object)) target)
+	     (dotimes (,j ,(cadr (get-sizes object)))
+	       (setf (aref target offset)
+		     ,(funcall (get-expr object) i j))
+	       (incf offset))))))))
 
 (defmacro with-matrixes (expr
 			 &key (declarations *default-declarations*)
@@ -392,11 +405,17 @@ handler. New handlers may be defined using DEFINE-HANDLER.
 
 (defvar *add-op* '+ "Addition operator for matrix elements")
 (defvar *multiply-op* '* "Multiplication operator for matrix elements")
+
 (define-matrix-handler + handle-plus
   (handle-map declarations `(,*add-op* ,@expr) env))
 
 (define-matrix-handler - handle-minus
   (handle-map declarations `(- ,@expr) env))
+
+#+nil
+(define-matrix-handler :expression handle-expr
+  (declare (ignore declarations env))
+  (make-expr-object '(:any :any) (compile nil (car expr))))
 
 (define-matrix-handler transpose handle-transpose
   (assert (null (cdr expr)))
@@ -410,12 +429,9 @@ handler. New handlers may be defined using DEFINE-HANDLER.
 			 nil (list result))))))
 
 (defun calculate-matrix-object (declarations expr env)
-  "Calculate type of a matrix expression
+  "Calculate an object for matrix expression.
 
-  The function is used to create target object for WITH-MATRIXES is it
-  is not provided by the caller.
-
-  Returns a EXPR-OBJECT."
+  The function is used internally by WITH-MATRIXES."
   (when (atom expr)
     (return-from calculate-matrix-object
       (cond
@@ -439,3 +455,20 @@ handler. New handlers may be defined using DEFINE-HANDLER.
   (let ((handler (assoc (car expr) *with-matrixes-handlers*)))
     (assert handler () "No matrix handle for ~A" (car expr))
     (apply (cadr handler) declarations (cdr expr) env (cddr handler))))
+
+(cz.zellerin.doc:define-section @common-matrixes
+  "Common matrixes for testing: (pauli n)")
+
+(define-matrix-handler pauli handle-pauli
+  (declare (ignore env declarations))
+  (flet ((arr2 (i j k l)
+	   (make-array '(2 2) :element-type *matrix-field*
+			      :initial-contents
+			      `((,(coerce i *matrix-field*) ,(coerce j *matrix-field*) )
+				(,(coerce k *matrix-field*) ,(coerce l *matrix-field*) )))))
+    (make-instance 'matrix-literal-object :object
+     (ecase (car expr)
+       (:iy (arr2 0 1 -1 0))
+       (:y (arr2 0 #C (0 1) #C (0 -1) 0))
+       (:z (arr2 1 0 0 -1))
+       (:x (arr2 0 1 1 0))))))
