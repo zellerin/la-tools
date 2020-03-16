@@ -459,7 +459,7 @@ handler. New handlers may be defined using DEFINE-HANDLER.
 (cz.zellerin.doc:define-section @common-matrixes
   "Common matrixes for testing: (pauli n)")
 
-(define-matrix-handler pauli handle-pauli
+(define-matrix-handler :pauli handle-pauli
   (declare (ignore env declarations))
   (flet ((arr2 (i j k l)
 	   (make-array '(2 2) :element-type *matrix-field*
@@ -471,4 +471,27 @@ handler. New handlers may be defined using DEFINE-HANDLER.
        (:iy (arr2 0 1 -1 0))
        (:y (arr2 0 #C (0 1) #C (0 -1) 0))
        (:z (arr2 1 0 0 -1))
+       (:z2 (with-matrixes (:constant (1 0 0 1) 2 2)))
        (:x (arr2 0 1 1 0))))))
+
+(define-matrix-handler :constant handle-constant
+  (declare (ignore env declarations))
+  (destructuring-bind (value n m) expr
+    (make-expr-object (list n m)
+		      (lambda (i j) `(aref
+				      ,(map `(vector ,*matrix-field*)
+					    (lambda (a) (coerce a *matrix-field*))
+					    value)
+				      (+ ,j (* ,i ,m)))))))
+
+(define-matrix-handler :linearized handle-linearized
+  (declare (ignore env declarations))
+  (destructuring-bind (value n m &optional (offset 0)) expr
+    (make-expr-object (list n m)
+		      (lambda (i j) `(aref ,value
+				      (+ ,offset ,j (* ,i ,m)))))))
+
+(define-matrix-handler :kronecker handle-kronecker
+  (declare (ignore env declarations))
+  ;; expr is list of matrixes
+  (error "Kronecker needs some work..."))
