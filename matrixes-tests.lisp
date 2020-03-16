@@ -1,15 +1,11 @@
 (in-package linear-algebra)
 (rt:deftest s*m
-    (let ((B (make-array '(2 3) :element-type 'single-float
-			      :initial-contents '((1.0 0.4 0.2)
-						 (0.1 0.2 0.3)))))
+    (let ((B (with-matrixes (:constant (1 0.4 0.2 0.1 0.2 0.25) 2 3))))
       (values
-       (with-matrixes (* 12.0 B) )
-       (with-matrixes (* 12.0 B))))
-  #1=#.(make-array '(2 3) :element-type 'single-float
-			:initial-contents '((12.0 4.8 2.4) (1.2 2.4 3.6000001)))
-  #1#)
-(regression-test:deftest scalar
+       (with-matrixes (* 12.0 B) )))
+  #.(with-matrixes (:constant (12 4.8 2.4 1.2 2.4 3) 2 3)))
+
+(rt:deftest scalar
     (with-matrixes 12) 12)
 
 (rt:deftest scalar*
@@ -47,13 +43,14 @@
     (with-matrixes
 	(*
 	 #2A((2 1 4 5)(0 -3 -1 7) (6 2 9 -8))
-	 #2a((3  6)(-1 1) (5 0) (2 -4)))
+	 #2a((3 6)(-1 1) (5 0) (2 -4)))
 	:field fixnum)
   #2A((35 -7) (12 -31) (45 70)))
 
 (rt:deftest transposed2
     (with-matrixes
-	(* (transpose #2A((2 0 6)(1 -3 2)(4 -1 9)(5 7 -8)))
+	(* (transpose
+	    #2A((2 0 6)(1 -3 2)(4 -1 9)(5 7 -8)))
 	   #2a((3 6)(-1 1)(5 0)(2 -4)) )
 	:field fixnum)
 
@@ -120,3 +117,19 @@
 		 :test 'equalp))))
       res)
   #2A((0 1 1 1) (1 2 1 1) (1 1 2 1) (1 1 1 2)))
+
+(rt:deftest pauli-fixnum
+    (with-matrixes (:pauli :x) :field fixnum)
+  #2A((0 1) (1 0)))
+
+(rt:deftest pauli-fixnum-type
+    (type-of (with-matrixes (:pauli :x) :field fixnum))
+  (simple-array fixnum (2 2)))
+
+(rt:deftest pauli-single
+    (with-matrixes (:pauli :x))
+  #2A((0.0 1.0) (1.0 0.0)))
+
+(rt:deftest pauli-single-type
+    (type-of (with-matrixes (:pauli :x)))
+  (simple-array single-float (2 2)))
