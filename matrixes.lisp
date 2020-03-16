@@ -2,13 +2,41 @@
 
 
 (cz.zellerin.doc:define-section @matrix-ops
-  "Optimized matrix operations are generated with WITH-MATRIXES macro.
+  "Matrix operation code is generated with WITH-MATRIXES macro, e,g,
+: (with-matrices (* alpha A B))
+takes one single float alpha, two single float 2D arrays (matrixes) A
+and B, checks that their sizes are compatible, and returns a 2D array
+that represents the matrix product A×B multiplied by the scalar alpha.
+
+Generated code can throw MATRIX-ERROR conditions, e.g., when the
+operands are not compatible.
+
+Internally, each expression is represented with an object that keeps
+information about its type, how to evaluate it, and what to assert to
+detect errors early. Generic functions `GET-BINDINGS', `GET-SIZES' and
+`GET-ASSERTIONS' provide information about the object. Generic function
+ASSIGN-EXPR generates code to copy expression to the target.
+
+MATRIX-LITERAL-OBJECT ----\
+                          |
+MATRIX-COPYABLE-OBJECT -\ |
+                        v v
+               /-> BASE-MATRIX-OBJECT
+               |
+EXPR-OBJECT  ----> EXPR-WITH-CHILDREN
+                    |
+SCALAR-EXPR-OBJECT -/
 
 By definition, all matrixes are expected to be of *MATRIX-FIELD*
 type. If you change that, you need also change *MATRIX-ZERO*.
-
-MATRIX-ERROR conditions may be thrown during calculation."
-  (with-matrixes))
+"
+  (with-matrixes)
+  (matrix-element-of*)
+  (matrix-copyable-object type)
+  (expr-object type)
+  (scalar-expr-object type)
+  (matrix-literal-object type)
+  (get-bindings) (get-sizes) (get-assertions) (assign-expr))
 
 
 (defparameter *matrix-field* 'single-float
@@ -47,8 +75,10 @@ Otherwise it denotes name of a variable and follows its size.")
   (assert (compatible-size s1 s2)
 	  ()
 	  'matrix-error :op op :params params
-	  :sizes (list s1 s2)))
+			:sizes (list s1 s2)))
 
+
+;;;; Representation of objects
 (defclass base-matrix-object ()
   ()
   (:documentation "Mixin for expression objects that represent a matrix (as oposed to, e.g. scalar)"))
@@ -99,6 +129,10 @@ The size values of elements is determined at run time."))
   (:documentation "Object that represents a literal array (with known size and elements"))
 
 (defgeneric matrix-element-of* (object i j)
+  (:documentation
+   "Generate code to calculate element of cell of a matrix represented by the object.
+
+`I' and `J' contain names of the index variables.")
   (:method ((object matrix-copyable-object) i j)
     `(aref ,(get-object object) ,i ,j))
   (:method ((object matrix-literal-object) i j)
@@ -106,8 +140,8 @@ The size values of elements is determined at run time."))
   (:method ((object expr-object) i j)
     (funcall (get-expr object) i j)))
 
-
 (defun make-expr-object (sizes expr &optional assertions children)
+  "Utility to create a EXPR-OBJECT object"
   (make-instance 'expr-object
 		 :sizes sizes
 		 :expr expr
@@ -115,6 +149,8 @@ The size values of elements is determined at run time."))
 		 :children children))
 
 (defgeneric get-bindings (object)
+  (:documentation
+   "Get all the bindings for an expression object, including children bindings.")
   (:method (object) nil)
   (:method ((object matrix-copyable-object))
     (let ((expr (get-object object)))
@@ -134,12 +170,26 @@ The size values of elements is determined at run time."))
   nil)
 
 (defgeneric get-assertions (object)
+  (:documentation
+   "Get all the assertions to be used for an expression, including children bindings.")
   (:method (object) nil)
   (:method :around ((object expr-with-children))
     (append (reduce 'append (get-children object) :key 'get-assertions)
 	    (call-next-method))))
 
 (defgeneric assign-expr (object target)
+  (:documentation
+   "Generate code to assign OBJECT to TARGET.
+
+- If OBJECT is an expr object and TARGET is non-null, assign to target
+  cell by cell.
+- If OBJECT is an expr object and TARGET is null, assign an empty
+  matrix of appropriate size to the TARGET, and then fill it cell by
+  cell.
+**************** TODO sloppy logic and risk
+- If OBJECT is not an expr object (it is symbol, a literal matrix,
+  ...), assign it directly
+")
   (:method (object (target symbol)) `(setf ,target ,(get-expr object)))
   (:method (object (target (eql nil))) (get-expr object))
   (:method ((object expr-object) res)
@@ -187,7 +237,7 @@ directly. There is no caching of intermediate results. It means that
 any repeated expression should be calculated explicitly and
 separatedly.
 
-The assumed field is single scalars. Other fields can be used by
+The default field is single floats. Other fields can be used by
 passing FIELD (type to be used for the vector creation and
 declarations), MATRIX-ZERO (zero value for the class), and possibly
 also *ADD-OP and *MULTIPLY-OP* parameters using keywords :adder and
