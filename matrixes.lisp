@@ -476,23 +476,23 @@ handler. New handlers may be defined using DEFINE-HANDLER.
 
 (define-matrix-handler :dirac handle-dirac
   (declare (ignore env declarations))
-  (macrolet ((@ (name &rest values)
+  (macrolet ((@ (&rest values)
 		 `(with-matrixes (:constant ,values 4 4))))
     (make-instance 'matrix-literal-object :object
 		   (ecase (car expr)
-		     (:x (@ 1 0 0 0 0 1 0 0 0 0 -1 0 0 0 0 -1))))))
-;	      #2A((0 0 0 1) (0 0 1 0)  (0 -1 0 0) (-1 0 0 0))
-;	      #2A((0 0 1 0) (0 0 0 -1) (-1 0 0 0) (0 1 0 0))
-
+		     (:t (@ 1 0 0 0 0 1 0 0 0 0 -1 0 0 0 0 -1))
+		     (:x (@ 0 0 0 1 0 0 1 0 0 -1 0 0 -1 0 0 0))
+		     (:iy (@ 0 0 0 1 0 0 -1 0 0 -1 0 0 1 0 0 0))
+		     (:z (@ 0 0 1 0 0 0 0 -1 -1 0 0 0 0 1 0 0))))))
 (define-matrix-handler :constant handle-constant
   (declare (ignore env declarations))
   (destructuring-bind (value n m) expr
-    (make-expr-object (list n m)
-		      (lambda (i j) `(aref
-				      ,(map `(vector ,*matrix-field*)
-					    (lambda (a) (coerce a *matrix-field*))
-					    value)
-				      (+ ,j (* ,i ,m)))))))
+    (print (make-expr-object (list n m)
+			     (lambda (i j) `(aref
+					     ,(map `(vector ,*matrix-field*)
+						   (lambda (a) (coerce a *matrix-field*))
+						   value)
+					     (+ ,j (* ,i ,m))))))))
 
 (define-matrix-handler :linearized handle-linearized
   (declare (ignore env declarations))
