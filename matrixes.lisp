@@ -9,35 +9,16 @@ and B, checks that their sizes are compatible, and returns a 2D array
 that represents the matrix product A×B multiplied by the scalar alpha.
 
 Generated code can throw MATRIX-ERROR conditions, e.g., when the
-operands are not compatible.
+operands are not compatible."
+  (with-matrixes))
 
-Internally, each expression is represented with an object that keeps
-information about its type, how to evaluate it, and what to assert to
-detect errors early. Generic functions `GET-BINDINGS', `GET-SIZES' and
-`GET-ASSERTIONS' provide information about the object. Generic function
-ASSIGN-EXPR generates code to copy expression to the target.
-
-MATRIX-LITERAL-OBJECT ----\
-                          |
-MATRIX-COPYABLE-OBJECT -\ |
-                        v v
-               /-> BASE-MATRIX-OBJECT
-               |
-EXPR-OBJECT  ----> EXPR-WITH-CHILDREN
-                    |
-SCALAR-EXPR-OBJECT -/
-
-By definition, all matrixes are expected to be of *MATRIX-FIELD*
-type. If you change that, you need also change *MATRIX-ZERO*.
-"
-  (with-matrixes)
-  (matrix-element-of*)
-  (matrix-copyable-object type)
-  (expr-object type)
-  (scalar-expr-object type)
-  (matrix-literal-object type)
-  (get-bindings) (get-sizes) (get-assertions) (assign-expr))
-
+(cz.zellerin.doc:define-section @variables
+  "By definition, all matrixes are expected to be of *MATRIX-FIELD*
+type. If you change that, you need also change *MATRIX-ZERO*."
+  (*matrix-field* variable)
+  (*matrix-zero* variable)
+  (*matrix-optimize* variable)
+  (*default-declarations* variable))
 
 (defparameter *matrix-field* 'single-float
   "Default field for the matrix elements.")
@@ -77,7 +58,30 @@ Otherwise it denotes name of a variable and follows its size.")
 	  'matrix-error :op op :params params
 			:sizes (list s1 s2)))
 
-
+(cz.zellerin.doc:define-section @matrix-ops-implementation
+  "Internally, each expression is represented with an object that keeps
+information about its type, how to evaluate it, and what to assert to
+detect errors early. Generic functions `GET-BINDINGS', `GET-SIZES' and
+`GET-ASSERTIONS' provide information about the object. Generic function
+ASSIGN-EXPR generates code to copy expression to the target.
+
+MATRIX-LITERAL-OBJECT ----\
+                          |
+MATRIX-COPYABLE-OBJECT -\ |
+                        v v
+               /-> BASE-MATRIX-OBJECT
+               |
+EXPR-OBJECT  ----> EXPR-WITH-CHILDREN
+                    |
+SCALAR-EXPR-OBJECT -/
+"
+  (with-matrixes)
+  (matrix-copyable-object type)
+  (expr-object type)
+  (scalar-expr-object type)
+  (matrix-literal-object type)
+  (get-bindings) (get-sizes) (get-assertions) (assign-expr))
+
 ;;;; Representation of objects
 (defclass base-matrix-object ()
   ()
