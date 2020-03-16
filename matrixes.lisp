@@ -474,6 +474,16 @@ handler. New handlers may be defined using DEFINE-HANDLER.
        (:z2 (with-matrixes (:constant (1 0 0 1) 2 2)))
        (:x (arr2 0 1 1 0))))))
 
+(define-matrix-handler :dirac handle-dirac
+  (declare (ignore env declarations))
+  (macrolet ((@ (name &rest values)
+		 `(with-matrixes (:constant ,values 4 4))))
+    (make-instance 'matrix-literal-object :object
+		   (ecase (car expr)
+		     (:x (@ 1 0 0 0 0 1 0 0 0 0 -1 0 0 0 0 -1))))))
+;	      #2A((0 0 0 1) (0 0 1 0)  (0 -1 0 0) (-1 0 0 0))
+;	      #2A((0 0 1 0) (0 0 0 -1) (-1 0 0 0) (0 1 0 0))
+
 (define-matrix-handler :constant handle-constant
   (declare (ignore env declarations))
   (destructuring-bind (value n m) expr
